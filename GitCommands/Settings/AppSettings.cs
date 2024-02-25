@@ -35,6 +35,7 @@ namespace GitCommands
         private static readonly SettingsPath AppearanceSettingsPath = new AppSettingsPath("Appearance");
         private static readonly SettingsPath ConfirmationsSettingsPath = new AppSettingsPath("Confirmations");
         private static readonly SettingsPath DetailedSettingsPath = new AppSettingsPath("Detailed");
+        private static readonly SettingsPath ExperimentalSettingsPath = new AppSettingsPath(DetailedSettingsPath, "Experimental");
         private static readonly SettingsPath RevisionGraphSettingsPath = new AppSettingsPath(AppearanceSettingsPath, "RevisionGraph");
         private static readonly SettingsPath RootSettingsPath = new AppSettingsPath(pathName: "");
 
@@ -1511,6 +1512,20 @@ namespace GitCommands
         }
 
         public static ISetting<bool> MergeGraphLanesHavingCommonParent { get; } = Setting.Create(RevisionGraphSettingsPath, nameof(MergeGraphLanesHavingCommonParent), true);
+
+        public static ISetting<bool> RenderGraphWithDiagonals { get; } = Setting.Create(ExperimentalSettingsPath, nameof(RenderGraphWithDiagonals), true);
+
+        public static ISetting<bool> StraightenGraphDiagonals { get; } = Setting.Create(ExperimentalSettingsPath, nameof(StraightenGraphDiagonals), true);
+
+        /// <summary>
+        ///  The limit when to skip the straightening of revision graph segments.
+        /// </summary>
+        /// <remarks>
+        ///  Straightening needs to call the expensive RevisionGraphRow.BuildSegmentLanes function.<br></br>
+        ///  Straightening inserts gaps making the graph wider. If it already has to display many segments, i.e. parallel branches, there would be a low benefit of straightening.<br></br>
+        ///  So rather skip the - in this case particularly expensive - RevisionGraphRow.BuildSegmentLanes function and call it only if the row is visible.
+        /// </remarks>
+        public static ISetting<int> StraightenGraphSegmentsLimit { get; } = Setting.Create(RevisionGraphSettingsPath, nameof(StraightenGraphSegmentsLimit), 80);
 
         public static string LastFormatPatchDir
         {

@@ -254,6 +254,13 @@ namespace GitUI
                 .FirstOrDefault(column => column.Resizable == DataGridViewTriState.True && column.AutoSizeMode == DataGridViewAutoSizeColumnMode.Fill);
         }
 
+        internal void CancelBackgroundTasks()
+        {
+            _customDiffToolsSequence.CancelCurrent();
+            _refreshRevisionsSequence.CancelCurrent();
+            _gridView.CancelBackgroundTasks();
+        }
+
         protected override void Dispose(bool disposing)
         {
             if (disposing)
@@ -524,7 +531,7 @@ namespace GitUI
                 _lastVisibleResizableColumn.Resizable = DataGridViewTriState.True;
             }
 
-            _gridView.Refresh(); // columns could change their Resizable state, e.g. the BuildStatusColumnProvider
+            _gridView.ApplySettings(); // columns could change their Resizable state, e.g. the BuildStatusColumnProvider
 
             base.Refresh();
 
@@ -1203,9 +1210,16 @@ namespace GitUI
                 {
                     // Wait for refs,CurrentCheckout and stashes as second step
                     this.InvokeAndForget(() => ShowLoading(showSpinner: false));
-                    semaphoreUpdateGrid.Wait(cancellationToken);
-                    semaphoreUpdateGrid.Wait(cancellationToken);
-                    firstRevisionReceived = true;
+                    try
+                    {
+                        semaphoreUpdateGrid.Wait(cancellationToken);
+                        semaphoreUpdateGrid.Wait(cancellationToken);
+                        firstRevisionReceived = true;
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        return;
+                    }
                 }
 
                 if (stashesById is not null)
