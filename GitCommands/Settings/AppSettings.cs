@@ -408,6 +408,16 @@ namespace GitCommands
             set => SetBool("usepatiencediffalgorithm", value);
         }
 
+        /// <summary>
+        /// Use Git coloring for selected commands
+        /// </summary>
+        public static ISetting<bool> UseGitColoring { get; } = Setting.Create(AppearanceSettingsPath, nameof(UseGitColoring), true);
+
+        /// <summary>
+        /// Use GE theme colors with Git diff coloring
+        /// </summary>
+        public static ISetting<bool> UseGEThemeGitColoring { get; } = Setting.Create(AppearanceSettingsPath, nameof(UseGEThemeGitColoring), true);
+
         public static bool ShowErrorsWhenStagingFiles
         {
             get => GetBool("showerrorswhenstagingfiles", true);
@@ -558,7 +568,7 @@ namespace GitCommands
 
         #region Avatars
 
-        public static string AvatarImageCachePath => Path.Combine(ApplicationDataPath.Value, "Images\\");
+        public static string AvatarImageCachePath => Path.Combine(LocalApplicationDataPath.Value, "Images\\");
 
         public static AvatarFallbackType AvatarFallbackType
         {
@@ -598,7 +608,7 @@ namespace GitCommands
 
         public static int AvatarCacheSize
         {
-            get => GetInt("Appearance.AvatarCacheSize", 50);
+            get => GetInt("Appearance.AvatarCacheSize", 200);
             set => SetInt("Appearance.AvatarCacheSize", value);
         }
 
@@ -1557,6 +1567,16 @@ namespace GitCommands
             set => SetBool("RememberShowEntireFilePreference", value);
         }
 
+        /// <summary>
+        /// Enable git-word-diff instead of normal "patch" viewer.
+        /// </summary>
+        public static BoolRuntimeSetting ShowGitWordColoring { get; } = new(RootSettingsPath, nameof(ShowGitWordColoring), false);
+
+        /// <summary>
+        /// Gets or sets whether to remember the preference for showing git word coloring.
+        /// </summary>
+        public static ISetting<bool> RememberShowGitWordColoring { get; } = Setting.Create(AppearanceSettingsPath, nameof(RememberShowGitWordColoring), false);
+
         public static int NumberOfContextLines
         {
             get
@@ -2128,6 +2148,15 @@ namespace GitCommands
                 catch
                 {
                     // there are CultureInfo values without a code page
+                }
+
+                try
+                {
+                    AddEncoding(Encoding.GetEncoding(0));
+                }
+                catch
+                {
+                    // catch if error retrieving operating system's active code page
                 }
             }
             else
