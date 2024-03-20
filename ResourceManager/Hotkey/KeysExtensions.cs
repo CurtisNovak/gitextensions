@@ -1,9 +1,11 @@
 ﻿using System.Globalization;
 
-namespace GitUI.Hotkey
+namespace ResourceManager.Hotkey
 {
     public static class KeysExtensions
     {
+        private const string TooltipSeparator = "\u00A0";
+
         /// <summary>
         /// Strips the modifier from KeyData.
         /// </summary>
@@ -76,13 +78,16 @@ namespace GitUI.Hotkey
         }
 
         public static string ToShortcutKeyDisplayString(this Keys key)
-        {
-            return key.ToText();
-        }
+            => key.ToText();
 
         public static string ToShortcutKeyToolTipString(this Keys key)
+            => key == Keys.None ? "" : $"({key.ToShortcutKeyDisplayString()})";
+
+        public static string UpdateTooltipWithShortcut(this string currentTooltipText, string shortcut)
         {
-            return key == Keys.None ? "" : $" ({key.ToShortcutKeyDisplayString()})";
+            int indexShortcut = currentTooltipText.LastIndexOf(TooltipSeparator);
+            string toolTip = indexShortcut < 0 ? currentTooltipText : currentTooltipText[..indexShortcut];
+            return string.IsNullOrWhiteSpace(shortcut) ? toolTip : $"{toolTip}{TooltipSeparator}{shortcut}";
         }
 
         private static string? ToCultureSpecificString(this Keys key)
@@ -93,7 +98,7 @@ namespace GitUI.Hotkey
             }
 
             // var str = key.ToString(); // OLD: this is culture unspecific
-            CultureInfo culture = CultureInfo.CurrentCulture; // TODO: replace this with the GitExtensions language setting
+            CultureInfo culture = CultureInfo.CurrentUICulture; // TODO: replace this with the GitExtensions language setting
 
             // for modifier keys this yields for example "Ctrl+None" thus we have to strip the rest after the +
             return new KeysConverter().ConvertToString(null, culture, key)?.SubstringUntil('+');
