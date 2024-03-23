@@ -1948,14 +1948,14 @@ namespace GitCommands
             return File.Exists(Path.Combine(GetGitDirectory(), "BISECT_START"));
         }
 
-        public bool InTheMiddleOfRebase()
-        {
-            return !File.Exists(GetRebaseDir() + "applying") && Directory.Exists(GetRebaseDir());
-        }
+        public bool InTheMiddleOfRebase() => InTheMiddleOfGitOperation("applying");
 
-        public bool InTheMiddleOfPatch()
+        public bool InTheMiddleOfPatch() => InTheMiddleOfGitOperation("rebasing");
+
+        private bool InTheMiddleOfGitOperation(string filename)
         {
-            return !File.Exists(GetRebaseDir() + "rebasing") && Directory.Exists(GetRebaseDir());
+            string rebaseDir = GetRebaseDir();
+            return !File.Exists(rebaseDir + filename) && Directory.Exists(rebaseDir);
         }
 
         public bool InTheMiddleOfMerge()
@@ -2952,7 +2952,7 @@ namespace GitCommands
                 return Array.Empty<string>();
             }
 
-            string[] result = exec.StandardOutput.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+            string[] result = exec.StandardOutput.Split(Delimiters.LineFeedAndCarriageReturn, StringSplitOptions.RemoveEmptyEntries);
 
             // Remove symlink targets as in "origin/HEAD -> origin/master"
             for (int i = 0; i < result.Length; i++)
@@ -2989,7 +2989,7 @@ namespace GitCommands
                 return Array.Empty<string>();
             }
 
-            return exec.StandardOutput.Split(new[] { '\r', '\n', '*', ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            return exec.StandardOutput.Split(Delimiters.GitOutput, StringSplitOptions.RemoveEmptyEntries);
         }
 
         public string? GetTagMessage(string? tag, CancellationToken cancellationToken = default)
@@ -3460,7 +3460,7 @@ namespace GitCommands
 
         public void OpenWithDifftoolDirDiff(string? firstRevision, string? secondRevision, string? customTool = null)
         {
-            OpenWithDifftool(null, firstRevision, secondRevision, extraDiffArguments: "--dir-diff", customTool: customTool);
+            OpenWithDifftool(filename: null, firstRevision: firstRevision, secondRevision: secondRevision, extraDiffArguments: "--dir-diff", customTool: customTool);
         }
 
         public void OpenWithDifftool(string? filename, string? oldFileName = "", string? firstRevision = GitRevision.IndexGuid, string? secondRevision = GitRevision.WorkTreeGuid, string? extraDiffArguments = null, bool isTracked = true, string? customTool = null)

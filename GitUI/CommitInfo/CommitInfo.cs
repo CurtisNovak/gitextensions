@@ -15,13 +15,13 @@ using GitExtUtils.GitUI;
 using GitExtUtils.GitUI.Theming;
 using GitUI.CommandsDialogs;
 using GitUI.Editor.RichTextBoxExtension;
-using GitUI.Hotkey;
 using GitUI.UserControls;
 using GitUIPluginInterfaces;
 using Microsoft;
 using Microsoft.VisualStudio.Threading;
 using ResourceManager;
 using ResourceManager.CommitDataRenders;
+using ResourceManager.Hotkey;
 
 namespace GitUI.CommitInfo
 {
@@ -845,10 +845,10 @@ namespace GitUI.CommitInfo
             {
                 _currentBranch = currentBranch;
                 _isDetachedHead = DetachedHeadParser.IsDetachedHead(currentBranch);
-                string[] branchRegexes = AppSettings.PrioritizedBranchNames.Split(";", StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                string[] branchRegexes = AppSettings.PrioritizedBranchNames.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
                 string[] localBranchRegexes = branchRegexes.Select(regex => $"^({regex})$").ToArray();
                 string[] remoteBranchRegexes = branchRegexes.Select(regex => $"^{_remoteBranchPrefix}[^/]+/({regex})$").ToArray();
-                string[] remoteRegexes = AppSettings.PrioritizedRemoteNames.Split(";", StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                string[] remoteRegexes = AppSettings.PrioritizedRemoteNames.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
                     .Select(regex => $"^{_remoteBranchPrefix}({regex})/").ToArray();
 
                 foreach (string branch in branches)
