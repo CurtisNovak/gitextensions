@@ -17,7 +17,6 @@ using GitUI.UserControls;
 using GitUIPluginInterfaces;
 using Microsoft;
 using ResourceManager;
-using ResourceManager.Hotkey;
 
 namespace GitUI.Editor
 {
@@ -336,6 +335,14 @@ namespace GitUI.Editor
             findToolStripMenuItem.ShortcutKeyDisplayString = GetShortcutKeyDisplayString(Command.Find);
             replaceToolStripMenuItem.ShortcutKeyDisplayString = GetShortcutKeyDisplayString(Command.Replace);
             goToLineToolStripMenuItem.ShortcutKeyDisplayString = GetShortcutKeyDisplayString(Command.GoToLine);
+
+            UpdateTooltipWithShortcut(nextChangeButton, Command.NextChange);
+            UpdateTooltipWithShortcut(previousChangeButton, Command.PreviousChange);
+            UpdateTooltipWithShortcut(increaseNumberOfLines, Command.IncreaseNumberOfVisibleLines);
+            UpdateTooltipWithShortcut(decreaseNumberOfLines, Command.DecreaseNumberOfVisibleLines);
+            UpdateTooltipWithShortcut(showEntireFileButton, Command.ShowEntireFile);
+            UpdateTooltipWithShortcut(showSyntaxHighlighting, Command.ShowSyntaxHighlighting);
+            UpdateTooltipWithShortcut(ignoreAllWhitespaces, Command.IgnoreAllWhitespace);
         }
 
         public ToolStripSeparator AddContextMenuSeparator()
@@ -371,6 +378,17 @@ namespace GitUI.Editor
                 { isRangeDiff && NumberOfContextLines == 0, "--no-patch " },
                 { TreatAllFilesAsText, "--text" },
                 { ShowGitWordColoring, "--word-diff=color" },
+            };
+        }
+
+        public ArgumentString GetExtraGrepArguments()
+        {
+            int numberOfContextLines = ShowEntireFile ? 100_000 : NumberOfContextLines;
+            return new ArgumentBuilder
+            {
+                "-h",
+                $"--context={numberOfContextLines}",
+                { TreatAllFilesAsText, "--text" },
             };
         }
 
@@ -445,6 +463,9 @@ namespace GitUI.Editor
 
         public Task ViewRangeDiffAsync(string fileName, string text, bool useGitColoring)
             => ViewPrivateAsync(item: null, fileName, text, line: null, openWithDifftool: null, ViewMode.RangeDiff, useGitColoring);
+
+        public Task ViewGrepAsync(FileStatusItem item, string text, bool useGitColoring, string grepString)
+            => ViewPrivateAsync(item, item?.Item?.Name, text, line: null, openWithDifftool: null, ViewMode.Grep, useGitColoring: useGitColoring, grepString);
 
         public void ViewText(string? fileName,
             string text,
@@ -755,14 +776,14 @@ namespace GitUI.Editor
 
         // Private methods
 
-        private Task ViewPrivateAsync(FileStatusItem? item, string? fileName, string text, int? line, Action? openWithDifftool, ViewMode viewMode, bool useGitColoring = false)
+        private Task ViewPrivateAsync(FileStatusItem? item, string? fileName, string text, int? line, Action? openWithDifftool, ViewMode viewMode, bool useGitColoring = false, string? grepString = null)
         {
             return ShowOrDeferAsync(
                 text.Length,
                 () =>
                 {
                     ResetView(viewMode, fileName, item: item, text: text);
-                    internalFileViewer.SetText(text, openWithDifftool, _viewMode, useGitColoring);
+                    internalFileViewer.SetText(text, openWithDifftool, _viewMode, useGitColoring, grepString);
                     if (line is not null)
                     {
                         GoToLine(line.Value);
@@ -1882,11 +1903,6 @@ namespace GitUI.Editor
                 // Don't handle the hotkey to let the control handle it if an action is bound to it
                 return false;
             }
-        }
-
-        private string GetShortcutKeyDisplayString(Command cmd)
-        {
-            return GetShortcutKeys((int)cmd).ToShortcutKeyDisplayString();
         }
 
         #endregion

@@ -11,7 +11,6 @@ using GitUIPluginInterfaces;
 using Microsoft;
 using Microsoft.VisualStudio.Threading;
 using ResourceManager;
-using ResourceManager.Hotkey;
 
 namespace GitUI.CommandsDialogs
 {
@@ -55,6 +54,7 @@ namespace GitUI.CommandsDialogs
             InitializeComponent();
             InitializeComplete();
             HotkeysEnabled = true;
+            DiffFiles.SearchEnabledForList = true;
             _fullPathResolver = new FullPathResolver(() => Module.WorkingDir);
             _revisionDiffController = new RevisionDiffController(() => Module, _fullPathResolver);
             _findFilePredicateProvider = new FindFilePredicateProvider();
@@ -133,6 +133,7 @@ namespace GitUI.CommandsDialogs
             SelectFirstGroupChanges = 14,
             FindFile = 15,
             OpenWorkingDirectoryFileWith = 16,
+            SearchCommit = 17,
         }
 
         public bool ExecuteCommand(Command cmd)
@@ -142,7 +143,7 @@ namespace GitUI.CommandsDialogs
 
         protected override bool ExecuteCommand(int cmd)
         {
-            if (DiffFiles.FilterFocused && IsTextEditKey(GetShortcutKeys(cmd)))
+            if ((DiffFiles.FilterFocused || DiffFiles.SearchFocused) && IsTextEditKey(GetShortcutKeys(cmd)))
             {
                 return false;
             }
@@ -168,6 +169,7 @@ namespace GitUI.CommandsDialogs
                 case Command.FilterFileInGrid: diffFilterFileInGridToolStripMenuItem.PerformClick(); break;
                 case Command.SelectFirstGroupChanges: return SelectFirstGroupChangesIfFileNotFocused();
                 case Command.FindFile: findInDiffToolStripMenuItem.PerformClick(); break;
+                case Command.SearchCommit: showSearchCommitToolStripMenuItem.PerformClick(); break;
                 default: return base.ExecuteCommand(cmd);
             }
 
@@ -205,6 +207,7 @@ namespace GitUI.CommandsDialogs
             diffShowInFileTreeToolStripMenuItem.ShortcutKeyDisplayString = GetShortcutKeyDisplayString(Command.ShowFileTree);
             diffFilterFileInGridToolStripMenuItem.ShortcutKeyDisplayString = GetShortcutKeyDisplayString(Command.FilterFileInGrid);
             findInDiffToolStripMenuItem.ShortcutKeyDisplayString = GetShortcutKeyDisplayString(Command.FindFile);
+            showSearchCommitToolStripMenuItem.ShortcutKeyDisplayString = GetShortcutKeyDisplayString(Command.SearchCommit);
 
             DiffText.ReloadHotkeys();
         }
@@ -226,11 +229,6 @@ namespace GitUI.CommandsDialogs
         public void CancelLoadCustomDifftools()
         {
             _customDiffToolsSequence.CancelCurrent();
-        }
-
-        private string GetShortcutKeyDisplayString(Command cmd)
-        {
-            return GetShortcutKeys((int)cmd).ToShortcutKeyDisplayString();
         }
 
         #endregion
@@ -318,6 +316,8 @@ namespace GitUI.CommandsDialogs
         {
             splitterManager.AddSplitter(DiffSplitContainer, "DiffSplitContainer");
         }
+
+        public SplitContainer HorizontalSplitter => DiffSplitContainer;
 
         protected override void OnRuntimeLoad()
         {
@@ -562,7 +562,7 @@ namespace GitUI.CommandsDialogs
             BlameControl.Visible = true;
 
             // Avoid that focus is switched to the file filter after changing visibility
-            if (ensureNoSwitchToFilter && DiffFiles.FilterFocused)
+            if (ensureNoSwitchToFilter && (DiffFiles.FilterFocused || DiffFiles.SearchFocused))
             {
                 BlameControl.Focus();
             }
@@ -587,7 +587,7 @@ namespace GitUI.CommandsDialogs
             DiffText.Visible = true;
 
             // Avoid that focus is switched to the file filter after changing visibility
-            if (ensureNoSwitchToFilter && DiffFiles.FilterFocused)
+            if (ensureNoSwitchToFilter && (DiffFiles.FilterFocused || DiffFiles.SearchFocused))
             {
                 DiffText.Focus();
             }
@@ -843,6 +843,11 @@ namespace GitUI.CommandsDialogs
             {
                 DiffFiles.SelectedGitItem = selectedItem;
             }
+        }
+
+        private void showSearchCommitToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            DiffFiles.ShowSearchCommit_Click(DiffText.GetSelectedText());
         }
 
         private void fileHistoryDiffToolstripMenuItem_Click(object sender, EventArgs e)
@@ -1356,8 +1361,7 @@ namespace GitUI.CommandsDialogs
         {
             return base.ProcessHotkey(keyData) // generic handling of this controls's hotkeys (upstream)
                 || (!GitExtensionsControl.IsTextEditKey(keyData) // downstream (without keys for quick search and filter)
-                    && ((DiffFiles.Visible && DiffFiles.ProcessHotkey(keyData))
-                        || (DiffText.Visible && DiffText.ProcessHotkey(keyData))
+                    && ((DiffText.Visible && DiffText.ProcessHotkey(keyData))
                         || (BlameControl.Visible && BlameControl.ProcessHotkey(keyData))));
         }
 
