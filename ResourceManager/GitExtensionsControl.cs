@@ -1,5 +1,6 @@
 using GitExtUtils;
 using GitUIPluginInterfaces;
+using ResourceManager.Hotkey;
 
 namespace ResourceManager
 {
@@ -94,13 +95,14 @@ namespace ResourceManager
         }
 
         protected Keys GetShortcutKeys(int commandCode)
-        {
-            return GetHotkeyCommand(commandCode)?.KeyData ?? Keys.None;
-        }
+            => _hotkeys.GetShortcutKey(commandCode);
 
-        private HotkeyCommand? GetHotkeyCommand(int commandCode)
+        public string GetShortcutKeyDisplayString<T>(T commandCode) where T : struct, Enum
+            => _hotkeys.GetShortcutDisplay(commandCode);
+
+        protected void UpdateTooltipWithShortcut<T>(ToolStripItem button, T commandCode) where T : struct, Enum
         {
-            return _hotkeys?.FirstOrDefault(h => h.CommandCode == commandCode);
+            button.ToolTipText = button.ToolTipText.UpdateSuffix(_hotkeys.GetShortcutToolTip(commandCode));
         }
 
         /// <summary>
