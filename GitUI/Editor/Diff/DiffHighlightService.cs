@@ -19,7 +19,6 @@ public abstract class DiffHighlightService : TextHighlightService
     public DiffHighlightService(ref string text, bool useGitColoring)
     {
         _useGitColoring = useGitColoring;
-
         SetText(ref text);
     }
 
@@ -116,17 +115,45 @@ public abstract class DiffHighlightService : TextHighlightService
         }
     }
 
-    public abstract string[] GetFullDiffPrefixes();
+    public override bool IsSearchMatch(DiffViewerLineNumberControl lineNumbersControl, int indexInText)
+        => lineNumbersControl.GetLineInfo(indexInText)?.LineType is (DiffLineType.Minus or DiffLineType.Plus or DiffLineType.MinusPlus or DiffLineType.Grep);
 
-    public abstract bool IsSearchMatch(string line);
+    public abstract string[] GetFullDiffPrefixes();
 
     protected readonly LinePrefixHelper LinePrefixHelper = new(new LineSegmentGetter());
 
-    protected abstract List<ISegment> GetAddedLines(IDocument document, ref int line, ref bool found);
+    /// <summary>
+    /// Parse the text in the document from line and return the added lines directly following.
+    /// Overridden in the HighlightServices where GE coloring is used (AddTextHighlighting() for Patch and CombinedDiff).
+    /// </summary>
+    /// <param name="document">The document to analyze.</param>
+    /// <param name="line">The line number to start with, updated with the last line processed.</param>
+    /// <param name="found">Ref updated if any added lines were found.</param>
+    /// <returns>List with the segments of added lines.</returns>
+    protected virtual List<ISegment> GetAddedLines(IDocument document, ref int line, ref bool found)
+        => [];
 
-    protected abstract List<ISegment> GetRemovedLines(IDocument document, ref int line, ref bool found);
+    /// <summary>
+    /// Parse the text in the document from line and return the removed lines directly following.
+    /// Overridden in the HighlightServices where GE coloring is used (AddTextHighlighting() for Patch and CombinedDiff).
+    /// </summary>
+    /// <param name="document">The document to analyze.</param>
+    /// <param name="line">The line number to start with, updated with the last line processed.</param>
+    /// <param name="found">Ref updated if any removed lines were found.</param>
+    /// <returns>List with the segments of removed lines.</returns>
+    protected virtual List<ISegment> GetRemovedLines(IDocument document, ref int line, ref bool found)
+        => [];
 
-    protected abstract int TryHighlightAddedAndDeletedLines(IDocument document, int line, LineSegment lineSegment);
+    /// <summary>
+    /// Highlight the directly following lines.
+    /// Overridden in the HighlightServices where GE coloring is used (AddTextHighlighting() for Patch and CombinedDiff).
+    /// </summary>
+    /// <param name="document">The document to analyze.</param>
+    /// <param name="line">The line number to start with.</param>
+    /// <param name="lineSegment">The segment for the starting line.</param>
+    /// <returns>The last line number processed.</returns>
+    protected virtual int TryHighlightAddedAndDeletedLines(IDocument document, int line, LineSegment lineSegment)
+        => line;
 
     protected void ProcessLineSegment(IDocument document, ref int line,
         LineSegment lineSegment, string prefixStr, Color color, bool invertMatch = false)
