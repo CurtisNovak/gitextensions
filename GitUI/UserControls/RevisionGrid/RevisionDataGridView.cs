@@ -18,15 +18,15 @@ namespace GitUI.UserControls.RevisionGrid
     {
         private const int BackgroundThreadUpdatePeriod = 25;
         private const int MouseWheelDeltaTimeout = 1500; // Mouse wheel idle time in milliseconds after which unconsumed wheel delta will be dropped.
+        private const int RowCountUpdateCoolDown = 300;
+
         private static readonly AccessibleDataGridViewTextBoxCell _accessibleDataGridViewTextBoxCell = new();
 
         private readonly SolidBrush _alternatingRowBackgroundBrush;
         private readonly SolidBrush _authoredHighlightBrush;
 
-        private readonly BackgroundUpdater _backgroundUpdater;
-        private readonly Stopwatch _lastRepaint = Stopwatch.StartNew();
-        private readonly Stopwatch _lastScroll = Stopwatch.StartNew();
-        private readonly Stopwatch _consecutiveScroll = Stopwatch.StartNew();
+        private readonly BackgroundUpdater _rowCountUpdater;
+        private readonly BackgroundUpdater _visibleRowRangeUpdater;
         private readonly List<ColumnProvider> _columnProviders = [];
         private readonly TaskManager _taskManager = ThreadHelper.CreateTaskManager();
         private readonly CancellationTokenSequence _updateVisibleRowRangeSequence = new();
@@ -90,7 +90,8 @@ namespace GitUI.UserControls.RevisionGrid
         {
             InitFonts();
 
-            _backgroundUpdater = new BackgroundUpdater(_taskManager, UpdateVisibleRowRangeInternalAsync, BackgroundThreadUpdatePeriod);
+            _rowCountUpdater = new BackgroundUpdater(_taskManager, UpdateRowCountAsync, RowCountUpdateCoolDown);
+            _visibleRowRangeUpdater = new BackgroundUpdater(_taskManager, UpdateVisibleRowRangeInternalAsync, BackgroundThreadUpdatePeriod);
 
             InitializeComponent();
             DoubleBuffered = true;
@@ -109,11 +110,10 @@ namespace GitUI.UserControls.RevisionGrid
                 }
             };
 
-            Scroll += (_, _) => OnScroll();
+            Scroll += (_, _) => UpdateVisibleRowRange();
             Resize += (_, _) => UpdateVisibleRowRange();
             GotFocus += (_, _) => InvalidateSelectedRows();
             LostFocus += (_, _) => InvalidateSelectedRows();
-            RowPrePaint += (_, _) => _lastRepaint.Restart();
 
             CellPainting += OnCellPainting;
             CellFormatting += (_, e) =>
@@ -286,8 +286,6 @@ namespace GitUI.UserControls.RevisionGrid
 
         private void OnCellPainting(object? sender, DataGridViewCellPaintingEventArgs e)
         {
-            _lastRepaint.Restart();
-
             DebugHelpers.Assert(_rowHeight != 0, "_rowHeight != 0");
 
             if (e.RowIndex < 0 ||
@@ -331,13 +329,6 @@ namespace GitUI.UserControls.RevisionGrid
             if (Columns[e.ColumnIndex].Tag is ColumnProvider provider)
             {
                 provider.OnCellPainting(e, _revision!, _rowHeight, _cellStyle.Value);
-            }
-
-            if (!e.Handled)
-            {
-                e.Handled = true;
-
-                UpdateVisibleRowRange();
             }
         }
 
@@ -592,6 +583,7 @@ namespace GitUI.UserControls.RevisionGrid
             finally
             {
                 UpdatingVisibleRows = false;
+                UpdateVisibleRowRange();
             }
         }
 
@@ -663,34 +655,15 @@ namespace GitUI.UserControls.RevisionGrid
             }
         }
 
-        private void OnScroll()
-        {
-            UpdateVisibleRowRange();
-
-            // When scrolling many rows within a short time, the message pump is
-            // flooded with WM_CTLCOLORSCROLLBAR messages and the DataGridView
-            // is not repainted. This happens for example when the mouse wheel
-            // is spinning fast (with free-spinning mouse wheels) or while dragging
-            // the scroll bar fast. In such cases, force a repaint to make the GUI
-            // feel more responsive.
-            if (_lastScroll.ElapsedMilliseconds > 100)
-            {
-                _consecutiveScroll.Restart();
-            }
-
-            if (_consecutiveScroll.ElapsedMilliseconds > 50
-                && _lastRepaint.ElapsedMilliseconds > 50)
-            {
-                Update();
-                _lastRepaint.Restart();
-            }
-
-            _lastScroll.Restart();
-        }
-
         private void TriggerRowCountUpdate()
         {
-            UpdateVisibleRowRange();
+            _rowCountUpdater.ScheduleExecution();
+        }
+
+        private async Task UpdateRowCountAsync()
+        {
+            await _taskManager.JoinableTaskFactory.SwitchToMainThreadAsync();
+            SetRowCountAndSelectRowsIfReady();
         }
 
         private void UpdateVisibleRowRange()
@@ -714,95 +687,68 @@ namespace GitUI.UserControls.RevisionGrid
                 }
             }
 
-            _backgroundUpdater.ScheduleExecution();
+            _visibleRowRangeUpdater.ScheduleExecution();
         }
 
         private async Task UpdateVisibleRowRangeInternalAsync()
         {
+            if (!AppSettings.ShowRevisionGridGraphColumn
+                || _columnProviders.Count == 0
+                || _columnProviders[0] is not RevisionGraphColumnProvider revisionGraphColumnProvider)
+            {
+                return;
+            }
+
             CancellationToken cancellationToken = _updateVisibleRowRangeSequence.Next();
 
             int fromIndex = Math.Max(0, FirstDisplayedScrollingRowIndex);
             int visibleRowCount = DisplayedRowCount(includePartialRow: true);
             visibleRowCount = Math.Min(_revisionGraph.Count - fromIndex, visibleRowCount);
 
-            if (_forceRefresh || _visibleRowRange.FromIndex != fromIndex || _visibleRowRange.Count != visibleRowCount)
+            if (!_forceRefresh && _visibleRowRange.FromIndex == fromIndex && _visibleRowRange.Count == visibleRowCount)
             {
-                _forceRefresh = false;
-                _visibleRowRange = new VisibleRowRange(fromIndex, visibleRowCount);
-
-                if (visibleRowCount > 0)
-                {
-                    // Preload the next page, too, in order to avoid delayed display of the graph when scrolling down
-                    int newBackgroundScrollTo = fromIndex + (2 * visibleRowCount);
-
-                    // We always want to set _backgroundScrollTo. Because we want the backgroundthread to stop working when we scroll up
-                    if (_backgroundScrollTo != newBackgroundScrollTo)
-                    {
-                        _backgroundScrollTo = newBackgroundScrollTo;
-
-                        if (AppSettings.ShowRevisionGridGraphColumn)
-                        {
-                            int curCount;
-                            do
-                            {
-                                curCount = _revisionGraph.GetCachedCount();
-                                await UpdateGraphAsync(fromIndex: curCount, toIndex: newBackgroundScrollTo);
-
-                                // Take changes to _backgroundScrollTo and IsDataLoadComplete by another thread into account
-                                if (IsDataLoadComplete)
-                                {
-                                    _backgroundScrollTo = Math.Min(_backgroundScrollTo, _revisionGraph.Count - 1);
-                                }
-                            }
-                            while (curCount <= _backgroundScrollTo);
-                        }
-                        else
-                        {
-                            int maxRowIndex = _revisionGraph.Count - 1;
-                            await UpdateGraphAsync(fromIndex: maxRowIndex, toIndex: maxRowIndex);
-                        }
-                    }
-
-                    await this.SwitchToMainThreadAsync(cancellationToken);
-                    if (cancellationToken.IsCancellationRequested)
-                    {
-                        return;
-                    }
-
-                    NotifyProvidersVisibleRowRangeChanged();
-                }
+                return;
             }
 
-            return;
+            _forceRefresh = false;
+            VisibleRowRange visibleRowRange = new(fromIndex, visibleRowCount);
+            _visibleRowRange = visibleRowRange;
 
-            async Task UpdateGraphAsync(int fromIndex, int toIndex)
+            if (visibleRowCount == 0)
             {
-                try
-                {
-                    // Cache the next item; build the cache in limited chunks in order to update intermittently
-                    _revisionGraph.CacheTo(currentRowIndex: toIndex, lastToCacheRowIndex: Math.Min(fromIndex + 1500, toIndex));
-
-                    await _taskManager.JoinableTaskFactory.SwitchToMainThreadAsync(cancellationToken);
-                    if (cancellationToken.IsCancellationRequested)
-                    {
-                        return;
-                    }
-
-                    SetRowCountAndSelectRowsIfReady();
-                }
-                catch (Exception exception)
-                {
-                    _backgroundScrollTo = -1;
-                    Trace.WriteLine(exception);
-                }
+                return;
             }
-        }
 
-        private void NotifyProvidersVisibleRowRangeChanged()
-        {
-            foreach (ColumnProvider provider in _columnProviders)
+            try
             {
-                provider.OnVisibleRowsChanged(_visibleRowRange);
+                // Preload the next page, too, in order to avoid delayed display of the graph when scrolling down
+                int newBackgroundScrollTo = fromIndex + (2 * visibleRowCount) - 1;
+
+                // We always want to set _backgroundScrollTo. Because we want the backgroundthread to stop working when we scroll up
+                _backgroundScrollTo = newBackgroundScrollTo;
+
+                int curCount;
+                do
+                {
+                    curCount = _revisionGraph.GetCachedCount();
+                    _revisionGraph.CacheTo(currentRowIndex: curCount, lastToCacheRowIndex: newBackgroundScrollTo, cancellationToken);
+
+                    // Take changes to _backgroundScrollTo and IsDataLoadComplete by another thread into account
+                    if (IsDataLoadComplete)
+                    {
+                        _backgroundScrollTo = Math.Min(_backgroundScrollTo, _revisionGraph.Count - 1);
+                    }
+                }
+                while (curCount <= _backgroundScrollTo);
+
+                cancellationToken.ThrowIfCancellationRequested();
+
+                await revisionGraphColumnProvider.RenderGraphToCacheAsync(visibleRowRange, newBackgroundScrollTo, _rowHeight, cancellationToken);
+            }
+            catch (Exception exception)
+            {
+                _visibleRowRange = new VisibleRowRange(fromIndex: 0, count: 0);
+                Trace.WriteLineIf(exception is not OperationCanceledException, exception);
             }
         }
 
