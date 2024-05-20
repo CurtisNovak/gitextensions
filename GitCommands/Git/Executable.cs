@@ -1,9 +1,8 @@
 using System.Diagnostics;
 using System.Text;
 using GitCommands.Logging;
-using GitExtUtils;
+using GitExtensions.Extensibility;
 using GitUI;
-using GitUIPluginInterfaces;
 using Microsoft.VisualStudio.Threading;
 
 namespace GitCommands

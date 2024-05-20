@@ -5,9 +5,10 @@ using CommonTestUtils;
 using FluentAssertions;
 using GitCommands;
 using GitCommands.Git;
+using GitExtensions.Extensibility;
+using GitExtensions.Extensibility.Git;
 using GitExtUtils;
 using GitUI;
-using GitUIPluginInterfaces;
 using Newtonsoft.Json;
 
 namespace GitCommandsTests
@@ -202,7 +203,7 @@ namespace GitCommandsTests
         {
             using (_executable.StageOutput(cmd + " " + Sha1.ToString(), output))
             {
-                IReadOnlyList<string> result = _gitModule.GetAllBranchesWhichContainGivenCommit(Sha1, getLocal, getRemote);
+                IReadOnlyList<string> result = _gitModule.GetAllBranchesWhichContainGivenCommit(Sha1, getLocal, getRemote, cancellationToken: default);
                 Assert.AreEqual(result, expected);
             }
         }
@@ -216,7 +217,7 @@ namespace GitCommandsTests
             bool getRemote,
             string[] expected)
         {
-            IReadOnlyList<string> result = _gitModule.GetAllBranchesWhichContainGivenCommit(Sha1, getLocal, getRemote);
+            IReadOnlyList<string> result = _gitModule.GetAllBranchesWhichContainGivenCommit(Sha1, getLocal, getRemote, cancellationToken: default);
             Assert.AreEqual(result, expected);
         }
 
@@ -375,7 +376,7 @@ namespace GitCommandsTests
 
                 using (_executable.StageOutput("remote -v", string.Join("\n", lines)))
                 {
-                    IReadOnlyList<GitUIPluginInterfaces.Remote> remotes = await _gitModule.GetRemotesAsync();
+                    IReadOnlyList<GitExtensions.Extensibility.Git.Remote> remotes = await _gitModule.GetRemotesAsync();
 
                     Assert.AreEqual(7, remotes.Count);
 
@@ -663,7 +664,7 @@ namespace GitCommandsTests
             repo.CreateAnnotatedTag("test_tag", repo.CommitHash, tagMessage);
 
             // execute test look-up
-            string actualReturnedMessage = repo.Module.GetTagMessage("test_tag");
+            string actualReturnedMessage = repo.Module.GetTagMessage("test_tag", cancellationToken: default);
 
             // compare result to expectations
             Assert.AreEqual(expectedReturnedMessage, actualReturnedMessage);

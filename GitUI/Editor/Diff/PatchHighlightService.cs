@@ -1,8 +1,7 @@
 ﻿using GitCommands;
-using GitExtUtils;
+using GitExtensions.Extensibility.Git;
 using GitExtUtils.GitUI.Theming;
 using GitUI.Theming;
-using GitUIPluginInterfaces;
 using ICSharpCode.TextEditor;
 using ICSharpCode.TextEditor.Document;
 
@@ -30,7 +29,7 @@ public class PatchHighlightService : DiffHighlightService
         lineNumbersControl.DisplayLineNum(result, showLeftColumn: true);
     }
 
-    public static GitCommandConfiguration GetGitCommandConfiguration(IGitModule module, bool useGitColoring)
+    public static IGitCommandConfiguration GetGitCommandConfiguration(IGitModule module, bool useGitColoring)
         => GetGitCommandConfiguration(module, useGitColoring, "diff");
 
     public override string[] GetFullDiffPrefixes() => _diffFullPrefixes;

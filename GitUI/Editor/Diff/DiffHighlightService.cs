@@ -1,9 +1,9 @@
 ﻿using System.Text;
 using GitCommands;
+using GitExtensions.Extensibility.Git;
 using GitExtUtils;
 using GitExtUtils.GitUI.Theming;
 using GitUI.Theming;
-using GitUIPluginInterfaces;
 using ICSharpCode.TextEditor.Document;
 
 namespace GitUI.Editor.Diff;
@@ -22,7 +22,7 @@ public abstract class DiffHighlightService : TextHighlightService
         SetText(ref text);
     }
 
-    public static GitCommandConfiguration GetGitCommandConfiguration(IGitModule module, bool useGitColoring, string command)
+    public static IGitCommandConfiguration GetGitCommandConfiguration(IGitModule module, bool useGitColoring, string command)
     {
         if (!useGitColoring)
         {

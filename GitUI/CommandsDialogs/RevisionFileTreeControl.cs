@@ -2,7 +2,8 @@
 using System.Diagnostics.CodeAnalysis;
 using GitCommands;
 using GitCommands.Git;
-using GitExtUtils;
+using GitExtensions.Extensibility;
+using GitExtensions.Extensibility.Git;
 using GitExtUtils.GitUI;
 using GitUI.CommandDialogs;
 using GitUI.CommandsDialogs.BrowseDialog;

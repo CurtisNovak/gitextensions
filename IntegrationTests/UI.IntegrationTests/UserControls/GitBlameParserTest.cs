@@ -1,5 +1,5 @@
-﻿using CommonTestUtils;
-using GitCommands;
+﻿using GitCommands;
+using GitExtensions.Extensibility.Git;
 using GitUI.UserControls;
 using GitUIPluginInterfaces;
 

@@ -1,11 +1,12 @@
-using System;
 using System.ComponentModel.Design;
 using System.Diagnostics;
 using System.Text;
 using GitCommands;
 using GitCommands.Git;
 using GitCommands.Settings;
-using GitExtUtils;
+using GitExtensions.Extensibility;
+using GitExtensions.Extensibility.Git;
+using GitExtensions.Extensibility.Plugins;
 using GitUI.CommandsDialogs;
 using GitUI.CommandsDialogs.RepoHosting;
 using GitUI.CommandsDialogs.SettingsDialog;

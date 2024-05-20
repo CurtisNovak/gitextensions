@@ -3,9 +3,7 @@ using System.Diagnostics;
 using System.Xml;
 using System.Xml.Serialization;
 using GitCommands;
-using GitExtUtils;
-using GitUI.NBugReports;
-using GitUIPluginInterfaces;
+using GitExtensions.Extensibility.Git;
 using ResourceManager;
 
 namespace GitUI.ScriptsEngine
