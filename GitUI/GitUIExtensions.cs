@@ -1,12 +1,12 @@
 ﻿using System.Text;
 using System.Text.RegularExpressions;
 using GitCommands;
-using GitExtUtils;
+using GitExtensions.Extensibility;
+using GitExtensions.Extensibility.Git;
 using GitUI.Editor;
 using GitUI.Editor.Diff;
 using GitUI.UserControls;
 using GitUI.UserControls.RevisionGrid;
-using GitUIPluginInterfaces;
 using ResourceManager;
 
 namespace GitUI
@@ -103,7 +103,7 @@ namespace GitUI
 
             if (!string.IsNullOrWhiteSpace(item.Item.GrepString))
             {
-                GitCommandConfiguration commandConfiguration = GrepHighlightService.GetGitCommandConfiguration();
+                IGitCommandConfiguration commandConfiguration = GrepHighlightService.GetGitCommandConfiguration();
                 ExecutionResult result = await fileViewer.Module.GetGrepFileAsync(
                         item.SecondRevision.ObjectId,
                         item.Item.Name,

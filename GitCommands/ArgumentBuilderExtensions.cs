@@ -1,7 +1,7 @@
 ﻿using System.ComponentModel;
 using GitCommands.Git;
-using GitExtUtils;
-using GitUIPluginInterfaces;
+using GitExtensions.Extensibility;
+using GitExtensions.Extensibility.Git;
 
 namespace GitCommands
 {

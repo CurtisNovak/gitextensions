@@ -1,9 +1,8 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using GitCommands;
-using GitExtUtils;
+using GitExtensions.Extensibility;
 using GitUI.NBugReports;
-using GitUIPluginInterfaces;
 
 namespace GitUI.Infrastructure
 {

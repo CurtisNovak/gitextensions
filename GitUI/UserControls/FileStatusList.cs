@@ -7,7 +7,8 @@ using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using GitCommands;
 using GitCommands.Git;
-using GitExtUtils;
+using GitExtensions.Extensibility;
+using GitExtensions.Extensibility.Git;
 using GitExtUtils.GitUI;
 using GitExtUtils.GitUI.Theming;
 using GitUI.NBugReports;
@@ -356,9 +357,12 @@ namespace GitUI
         private void SetFileStatusListVisibility(bool filesPresent)
         {
             LoadingFiles.Visible = false;
-            FilterComboBox.Visible = filesPresent || (SearchComboBox.Visible && !string.IsNullOrEmpty(SearchComboBox.Text));
-            NoFiles.Visible = !FilterComboBox.Visible;
-            if (NoFiles.Visible)
+
+            // Use variable to prevent bad value retrieved from `Visible` property
+            bool filesToFilter = filesPresent || (SearchComboBox.Visible && !string.IsNullOrEmpty(SearchComboBox.Text));
+            FilterComboBox.Visible = filesToFilter;
+            NoFiles.Visible = !filesToFilter;
+            if (!filesToFilter)
             {
                 // Workaround for startup issue if set in EnableSearchForList()
                 NoFiles.Top = FilterComboBox.Top;

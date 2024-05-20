@@ -1,9 +1,9 @@
 ﻿using System.Collections;
 using System.ComponentModel.Design;
-using System.Windows.Forms;
 using CommonTestUtils;
 using FluentAssertions;
 using GitCommands;
+using GitExtensions.Extensibility.Git;
 using GitExtUtils.GitUI.Theming;
 using GitUI;
 using GitUI.CommandsDialogs;

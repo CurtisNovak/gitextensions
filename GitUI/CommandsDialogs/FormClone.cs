@@ -2,10 +2,10 @@
 using GitCommands.Config;
 using GitCommands.Git;
 using GitCommands.UserRepositoryHistory;
-using GitExtUtils;
+using GitExtensions.Extensibility;
+using GitExtensions.Extensibility.Git;
 using GitExtUtils.GitUI.Theming;
 using GitUI.HelperDialogs;
-using GitUIPluginInterfaces;
 using ResourceManager;
 
 namespace GitUI.CommandsDialogs
@@ -209,7 +209,7 @@ namespace GitUI.CommandsDialogs
                     branch = null;
                 }
 
-                GitExtUtils.ArgumentString cloneCmd = Commands.Clone(_NO_TRANSLATE_From.Text,
+                ArgumentString cloneCmd = Commands.Clone(_NO_TRANSLATE_From.Text,
                     dirTo,
                     UICommands.Module.GetPathForGitExecution,
                     CentralRepository.Checked,
