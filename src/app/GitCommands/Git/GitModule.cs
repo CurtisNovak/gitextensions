@@ -977,7 +977,7 @@ namespace GitCommands
 
         public GitRevision GetRevision(ObjectId? objectId = null, bool shortFormat = false, bool loadRefs = false)
         {
-            GitRevision revision = new RevisionReader(this, allBodies: true).GetRevision(objectId?.ToString(), hasNotes: !shortFormat, cancellationToken: default);
+            GitRevision revision = new RevisionReader(this, allBodies: true).GetRevision(objectId?.ToString(), hasNotes: !shortFormat, throwOnError: true, cancellationToken: default)!;
 
             if (loadRefs)
             {
@@ -1015,10 +1015,11 @@ namespace GitCommands
                 .ToList();
         }
 
-        public string? ShowObject(ObjectId objectId)
+        public string? ShowObject(ObjectId objectId, bool returnRaw)
         {
-            return ReEncodeShowString(_gitExecutable
-                .GetOutput($"show {objectId}", cache: GitCommandCache, outputEncoding: LosslessEncoding));
+            string gitOutput = _gitExecutable
+                .GetOutput($"show {objectId}", cache: GitCommandCache, outputEncoding: LosslessEncoding);
+            return returnRaw ? gitOutput : ReEncodeShowString(gitOutput);
         }
 
         public void DeleteTag(string tagName)

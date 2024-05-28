@@ -1,5 +1,4 @@
 ﻿using System.Diagnostics;
-using GitCommands;
 using GitExtensions.Extensibility;
 using GitExtensions.Extensibility.Git;
 using GitUI.LeftPanel.Interfaces;
@@ -34,7 +33,7 @@ namespace GitUI.LeftPanel
                 TreeViewNode.TreeView,
                 remoteBranch: remoteBranchInfo.BranchName,
                 remote: remoteBranchInfo.Remote,
-                pullAction: AppSettings.PullAction.Fetch);
+                pullAction: GitPullAction.Fetch);
             return pullCompleted;
         }
 

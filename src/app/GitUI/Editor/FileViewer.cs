@@ -34,6 +34,10 @@ namespace GitUI.Editor
 
         private readonly TranslationString _largeFileSizeWarning = new("This file is {0:N1} MB. Showing large files can be slow. Click to show anyway.");
         private readonly TranslationString _cannotViewImage = new("Cannot view image {0}");
+        private readonly TranslationString _fileSizeInMb = new("MB");
+        private readonly TranslationString _bytes = new("bytes");
+        private readonly TranslationString _binaryFile = new("Binary file: {0}");
+        private readonly TranslationString _binaryFileDetected = new("Binary file: {0} (Detected)");
 
         public event EventHandler<SelectedLineEventArgs>? SelectedLineChanged;
         public event EventHandler? HScrollPositionChanged;
@@ -426,16 +430,15 @@ namespace GitUI.Editor
             EnvironmentAbstraction env = new();
 
             // Difftastic coloring is always used (AppSettings.UseGitColoring.Value is not used).
+            // Allow user to override with difftool command line options.
             env.SetEnvironmentVariable("DFT_COLOR", "always");
             env.SetEnvironmentVariable("DFT_BACKGROUND", ThemeModule.IsDarkTheme ? "dark" : "light");
             env.SetEnvironmentVariable("DFT_SYNTAX_HIGHLIGHT", ShowSyntaxHighlightingInDiff ? "on" : "off");
             int contextLines = ShowEntireFile ? 9000 : NumberOfContextLines;
             env.SetEnvironmentVariable("DFT_CONTEXT", contextLines.ToString());
-            if (IgnoreWhitespace != IgnoreWhitespaceKind.None)
-            {
-                // Reasonable similar to IgnoreWhitespaceKind.Eol
-                env.SetEnvironmentVariable("DFT_STRIP_CR", "on");
-            }
+
+            // Reasonable similar to IgnoreWhitespaceKind.Eol
+            env.SetEnvironmentVariable("DFT_STRIP_CR", IgnoreWhitespace == IgnoreWhitespaceKind.None ? "off" : "on");
 
             // Guess a reasonable even column number from viewer width, so scrollbar is (barely) activated.
             // At least 2*(2+linenoLength) of the width is used for difftastic lineno.
@@ -443,7 +446,7 @@ namespace GitUI.Editor
             env.SetEnvironmentVariable("DFT_WIDTH", width.ToString());
 
             // Also export to WSL environment (DFT_WIDTH is also used when parsing in GE).
-            env.SetEnvironmentVariable("WSLENV", "DFT_COLOR:DFT_BACKGROUND:DFT_SYNTAX_HIGHLIGHT:DFT_CONTEXT:DFT_WIDTH");
+            env.SetEnvironmentVariable("WSLENV", "DFT_COLOR:DFT_BACKGROUND:DFT_SYNTAX_HIGHLIGHT:DFT_CONTEXT:DFT_STRIP_CR:DFT_WIDTH");
 
             return new ArgumentBuilder
             {
@@ -579,21 +582,11 @@ namespace GitUI.Editor
                     {
                         try
                         {
-                            StringBuilder summary = new StringBuilder()
-                                .AppendLine("Binary file:")
-                                .AppendLine()
-                                .AppendLine(fileName)
-                                .AppendLine()
-                                .AppendLine($"{text.Length:N0} bytes:")
-                                .AppendLine();
-                            internalFileViewer.SetText(summary.ToString(), openWithDifftool);
-
-                            ToHexDump(Encoding.ASCII.GetBytes(text), summary);
-                            internalFileViewer.SetText(summary.ToString(), openWithDifftool);
+                            DisplayAsHexDump(_binaryFile.Text, fileName, text, openWithDifftool);
                         }
                         catch
                         {
-                            internalFileViewer.SetText($"Binary file: {fileName} (Detected)", openWithDifftool);
+                            internalFileViewer.SetText(string.Format(_binaryFileDetected.Text, fileName), openWithDifftool);
                         }
                     }
                     else
@@ -609,6 +602,26 @@ namespace GitUI.Editor
                     TextLoaded?.Invoke(this, null);
                     return Task.CompletedTask;
                 });
+        }
+
+        private void DisplayAsHexDump(string fileNameFormat, string filename, string data, Action? openWithDifftool)
+        {
+            StringBuilder summary = new StringBuilder()
+                .AppendLine(string.Format(fileNameFormat, filename))
+                .AppendLine();
+
+            double mb = data.Length / (1024d * 1024);
+            if (mb >= 0.1)
+            {
+                summary.Append($"{mb:N1} {_fileSizeInMb.Text} / ");
+            }
+
+            summary.AppendLine($"{data.Length:N0} {_bytes.Text}:")
+                .AppendLine();
+
+            string hexData = ToHexDump(data, summary);
+
+            internalFileViewer.SetText(hexData, openWithDifftool);
         }
 
         public Task ViewGitItemAsync(FileStatusItem item, int? line, Action? openWithDifftool)
@@ -671,7 +684,7 @@ namespace GitUI.Editor
 
             string GetFileTextIfBlobExists()
             {
-                FilePreamble = new byte[] { };
+                FilePreamble = [];
                 return file.TreeGuid is not null ? Module.GetFileText(file.TreeGuid, Encoding) : string.Empty;
             }
 
@@ -757,7 +770,7 @@ namespace GitUI.Editor
             string GetFileText()
             {
                 using FileStream stream = File.Open(fullPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-                using StreamReader reader = new(stream, Module.FilesEncoding);
+                using StreamReader reader = new(stream, GitModule.LosslessEncoding);
 #pragma warning disable VSTHRD103 // Call async methods when in an async method
                 string content = reader.ReadToEnd();
 #pragma warning restore VSTHRD103 // Call async methods when in an async method
@@ -821,7 +834,7 @@ namespace GitUI.Editor
                 _async.Dispose();
                 components?.Dispose();
 
-                if (TryGetUICommandsDirect(out GitUICommands uiCommands))
+                if (TryGetUICommandsDirect(out IGitUICommands uiCommands))
                 {
                     uiCommands.PostSettings -= UICommands_PostSettings;
                 }
@@ -1166,17 +1179,9 @@ namespace GitUI.Editor
                             {
                                 if (image is null)
                                 {
-                                    ResetView(ViewMode.Text, null);
-
+                                    ResetView(ViewMode.Text, fileName, item);
                                     string text = getFileText();
-                                    StringBuilder summary = new StringBuilder()
-                                        .AppendLine(string.Format(_cannotViewImage.Text, fileName))
-                                        .AppendLine()
-                                        .AppendLine($"{text.Length:N0} bytes:")
-                                        .AppendLine();
-
-                                    ToHexDump(Encoding.ASCII.GetBytes(text), summary);
-                                    internalFileViewer.SetText(summary.ToString(), openWithDifftool);
+                                    DisplayAsHexDump(_cannotViewImage.Text, fileName, text, openWithDifftool);
                                     return;
                                 }
 
@@ -1203,9 +1208,9 @@ namespace GitUI.Editor
             }
         }
 
-        private static string ToHexDump(byte[] bytes, StringBuilder str, int columnWidth = 8, int columnCount = 2)
+        private static string ToHexDump(string text, StringBuilder str, int columnWidth = 8, int columnCount = 2)
         {
-            if (bytes.Length == 0)
+            if (text.Length == 0)
             {
                 return "";
             }
@@ -1213,7 +1218,7 @@ namespace GitUI.Editor
             // Do not freeze GE when selecting large binary files
             // Show only the header of the binary file to indicate contents and files incorrectly handled
             // Use a dedicated editor to view the complete file
-            int limit = Math.Min(bytes.Length, columnWidth * columnCount * 256);
+            int limit = Math.Min(text.Length, columnWidth * columnCount * 256);
             int i = 0;
 
             while (i < limit)
@@ -1226,7 +1231,7 @@ namespace GitUI.Editor
                 }
 
                 // OFFSET
-                str.Append($"{baseIndex:X4}    ");
+                str.Append($"{baseIndex:X4}   ");
 
                 // BYTES
                 for (int columnIndex = 0; columnIndex < columnCount; columnIndex++)
@@ -1244,14 +1249,14 @@ namespace GitUI.Editor
                             str.Append(' ');
                         }
 
-                        str.Append(i < bytes.Length
-                            ? bytes[i].ToString("X2")
+                        str.Append(i < text.Length
+                            ? ((byte)text[i]).ToString("X2")
                             : "  ");
                         i++;
                     }
                 }
 
-                str.Append("    ");
+                str.Append("   ");
 
                 // ASCII
                 i = baseIndex;
@@ -1265,9 +1270,9 @@ namespace GitUI.Editor
 
                     for (int j = 0; j < columnWidth; j++)
                     {
-                        if (i < bytes.Length)
+                        if (i < text.Length)
                         {
-                            char c = (char)bytes[i];
+                            char c = text[i];
                             str.Append(char.IsControl(c) ? '.' : c);
                         }
                         else
@@ -1280,7 +1285,7 @@ namespace GitUI.Editor
                 }
             }
 
-            if (bytes.Length > limit)
+            if (text.Length > limit)
             {
                 str.AppendLine();
                 str.Append("[Truncated]");

@@ -1,7 +1,9 @@
 ﻿using GitCommands;
 using GitCommands.Settings;
 using GitCommands.Utils;
+using GitExtensions.Extensibility.Git;
 using GitExtensions.Extensibility.Plugins;
+using GitExtensions.Extensibility.Settings;
 using GitExtUtils.GitUI.Theming;
 using GitUI.CommandsDialogs.SettingsDialog;
 using GitUI.CommandsDialogs.SettingsDialog.Pages;
@@ -27,7 +29,7 @@ namespace GitUI.CommandsDialogs
         private SettingsPageReference? _initialPage;
         private bool _saved = false;
 
-        public FormSettings(GitUICommands commands, SettingsPageReference? initialPage = null)
+        public FormSettings(IGitUICommands commands, SettingsPageReference? initialPage = null)
             : base(commands)
         {
             InitializeComponent();
@@ -86,7 +88,7 @@ namespace GitUI.CommandsDialogs
             Save();
         }
 
-        public static DialogResult ShowSettingsDialog(GitUICommands uiCommands, IWin32Window? owner, SettingsPageReference? initialPage = null)
+        public static DialogResult ShowSettingsDialog(IGitUICommands uiCommands, IWin32Window? owner, SettingsPageReference? initialPage = null)
         {
             DialogResult result = DialogResult.None;
 
