@@ -15,7 +15,7 @@ using System.Runtime.InteropServices;
 //
 [assembly: AssemblyVersion("4.3.1")]
 [assembly: AssemblyFileVersion("4.3.1")]
-[assembly: AssemblyInformationalVersion("4.3.1m")]
+[assembly: AssemblyInformationalVersion("4.3.1n")]
 
 // Disable CLS compliance. See https://github.com/gitextensions/gitextensions/issues/4710
 [assembly: CLSCompliant(isCompliant: false)]
