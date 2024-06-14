@@ -139,15 +139,34 @@ STDMETHODIMP CGitExtensionsShellEx::Initialize(LPCITEMIDLIST pidlFolder, LPDATAO
     }
 
     // Sanity check - make sure there is at least one filename.
-    UINT uNumFiles = DragQueryFile(hDrop, 0xFFFFFFFF, NULL, 0);
+    m_uNumFiles = DragQueryFile(hDrop, 0xFFFFFFFF, NULL, 0);
     HRESULT hr = S_OK;
-    DBG_TRACE(L"uNumFiles=%u", uNumFiles);
+    DBG_TRACE(L"m_uNumFiles=%u", m_uNumFiles);
 
-    if (uNumFiles != 1)
-        hr = E_INVALIDARG;
+    m_sFilesQuoted.Empty();
+    for (UINT uFile = 0; uFile < m_uNumFiles; ++uFile)
+    {
+        TCHAR szFile[MAX_PATH];
+        if (!DragQueryFile(hDrop, uFile, szFile, MAX_PATH))
+        {
+            hr = E_INVALIDARG;
+        }
+        else
+        {
+            m_sFilesQuoted += ' ';
+            m_sFilesQuoted += '"';
+            m_sFilesQuoted += szFile;
+            m_sFilesQuoted += '"';
+        }
+    }
+    DBG_TRACE(L"m_sFilesQuoted=%s", m_sFilesQuoted);
+
     // Get the name of the first file and store it in our member variable m_szFile.
-    else if (!DragQueryFile(hDrop, 0, m_szFile, MAX_PATH))
-        hr = E_INVALIDARG;
+    if (m_uNumFiles > 0)
+    {
+        if (!DragQueryFile(hDrop, 0, m_szFile, MAX_PATH))
+            hr = E_INVALIDARG;
+    }
     DBG_TRACE(L"m_szFile=%s", m_szFile);
 
     GlobalUnlock(stg.hGlobal);
@@ -553,7 +572,9 @@ STDMETHODIMP CGitExtensionsShellEx::QueryContextMenu(
             }
         }
 
-        if (DisplayMenuItem(szCascadeShellMenuItems, gcDiffTool))
+        const bool isSingleFile = m_uNumFiles == 1;
+
+        if (DisplayMenuItem(szCascadeShellMenuItems, gcDiffTool) && isSingleFile)
         {
             isSubMenu = DisplayInSubmenu(szCascadeShellMenuItems, gcDiffTool);
             if (isSubMenu && submenuIndex > 0) {
@@ -563,14 +584,14 @@ STDMETHODIMP CGitExtensionsShellEx::QueryContextMenu(
             commandsId[cmdid]=gcDiffTool;
         }
 
-        if (DisplayMenuItem(szCascadeShellMenuItems, gcFileHistory))
+        if (DisplayMenuItem(szCascadeShellMenuItems, gcFileHistory) && isSingleFile)
         {
             isSubMenu = DisplayInSubmenu(szCascadeShellMenuItems, gcFileHistory);
             cmdid=AddMenuItem(!isSubMenu ? hMenu : popupMenu, L"File history", IDI_ICONFILEHISTORY, uidFirstCmd, ++id, !isSubMenu ? menuIndex++ : submenuIndex++, isSubMenu);
             commandsId[cmdid]=gcFileHistory;
         }
 
-        if (DisplayMenuItem(szCascadeShellMenuItems, gcResetFileChanges))
+        if (DisplayMenuItem(szCascadeShellMenuItems, gcResetFileChanges) && isSingleFile)
         {
             isSubMenu = DisplayInSubmenu(szCascadeShellMenuItems, gcResetFileChanges);
             cmdid=AddMenuItem(!isSubMenu ? hMenu : popupMenu, L"Reset file changes...", IDI_ICONTRESETFILETO, uidFirstCmd, ++id, !isSubMenu ? menuIndex++ : submenuIndex++, isSubMenu);
@@ -584,7 +605,7 @@ STDMETHODIMP CGitExtensionsShellEx::QueryContextMenu(
             commandsId[cmdid]=gcAddFiles;
         }
 
-        if (DisplayMenuItem(szCascadeShellMenuItems, gcApplyPatch))
+        if (DisplayMenuItem(szCascadeShellMenuItems, gcApplyPatch) && isSingleFile)
         {
             isSubMenu = DisplayInSubmenu(szCascadeShellMenuItems, gcApplyPatch);
             cmdid=AddMenuItem(!isSubMenu ? hMenu : popupMenu, L"Apply patch...", IDI_ICONPATCHAPPLY, uidFirstCmd, ++id, !isSubMenu ? menuIndex++ : submenuIndex++, isSubMenu);
@@ -709,32 +730,39 @@ STDMETHODIMP CGitExtensionsShellEx::GetCommandString(
 
 void CGitExtensionsShellEx::RunGitEx(const TCHAR* command)
 {
-    CString szFile = m_szFile;
-    CString szCommandName = command;
-    CString args;
+    CString sFile = m_szFile;
+    CString sArgs;
 
-    if (szFile.GetLength() > 1 && szFile[szFile.GetLength() - 1] == '\\')
+    if (sFile.GetLength() > 1 && sFile[sFile.GetLength() - 1] == '\\')
     {
         // Escape the final backslash to avoid escaping the quote.
         // This is a problem for drive roots on Windows, such as "C:\".
-        szFile += '\\';
+        sFile += '\\';
     }
 
-    args += command;
-    args += " \"";
-    args += szFile;
-    args += "\"";
+    sArgs += command;
+    if (StrCmpW(command, L"addfiles") == 0)
+    {
+        sArgs += m_sFilesQuoted;
+    }
+    else
+    {
+        sArgs += " \"";
+        sArgs += sFile;
+        sArgs += "\"";
+    }
 
-    CString dir = "";
+    CString sDir = "";
 
-    if (dir.GetLength() == 0)
-        dir = GetRegistryValue(HKEY_CURRENT_USER, L"SOFTWARE\\GitExtensions", L"InstallDir");
-    if (dir.GetLength() == 0)
-        dir = GetRegistryValue(HKEY_USERS, L"SOFTWARE\\GitExtensions", L"InstallDir");
-    if (dir.GetLength() == 0)
-        dir = GetRegistryValue(HKEY_LOCAL_MACHINE, L"SOFTWARE\\GitExtensions", L"InstallDir");
+    if (sDir.GetLength() == 0)
+        sDir = GetRegistryValue(HKEY_CURRENT_USER, L"SOFTWARE\\GitExtensions", L"InstallDir");
+    if (sDir.GetLength() == 0)
+        sDir = GetRegistryValue(HKEY_USERS, L"SOFTWARE\\GitExtensions", L"InstallDir");
+    if (sDir.GetLength() == 0)
+        sDir = GetRegistryValue(HKEY_LOCAL_MACHINE, L"SOFTWARE\\GitExtensions", L"InstallDir");
 
-    ShellExecute(NULL, L"open", L"GitExtensions.exe", args, dir, SW_SHOWNORMAL);
+    CString sExe = sDir + L"\\GitExtensions.exe";
+    ShellExecute(NULL, L"open", sExe, sArgs, nullptr, SW_SHOWNORMAL);
 }
 
 STDMETHODIMP CGitExtensionsShellEx::InvokeCommand(LPCMINVOKECOMMANDINFO pCmdInfo)
