@@ -47,9 +47,9 @@
             tableLayoutPanel1.SuspendLayout();
             flowLayoutPanel1.SuspendLayout();
             SuspendLayout();
-            // 
+            //
             // gbResetType
-            // 
+            //
             gbResetType.AutoSize = true;
             gbResetType.AutoSizeMode = AutoSizeMode.GrowAndShrink;
             gbResetType.Controls.Add(tableLayoutPanel2);
@@ -62,9 +62,9 @@
             gbResetType.TabIndex = 0;
             gbResetType.TabStop = false;
             gbResetType.Text = "Reset type";
-            // 
+            //
             // tableLayoutPanel2
-            // 
+            //
             tableLayoutPanel2.AutoSize = true;
             tableLayoutPanel2.AutoSizeMode = AutoSizeMode.GrowAndShrink;
             tableLayoutPanel2.ColumnCount = 1;
@@ -87,12 +87,11 @@
             tableLayoutPanel2.RowStyles.Add(new RowStyle(SizeType.Absolute, 20F));
             tableLayoutPanel2.Size = new Size(437, 210);
             tableLayoutPanel2.TabIndex = 0;
-            // 
+            //
             // Soft
-            // 
+            //
             Soft.AutoSize = true;
             Soft.BackColor = Color.FromArgb(((int)(((byte)(128)))), ((int)(((byte)(255)))), ((int)(((byte)(128)))));
-            Soft.Checked = true;
             Soft.Dock = DockStyle.Fill;
             Soft.ForeColor = Color.Black;
             Soft.Location = new Point(3, 3);
@@ -102,9 +101,9 @@
             Soft.TabIndex = 0;
             Soft.Text = "&Soft: leave working directory and index untouched";
             Soft.UseVisualStyleBackColor = false;
-            // 
+            //
             // Mixed
-            // 
+            //
             Mixed.AutoSize = true;
             Mixed.BackColor = Color.FromArgb(((int)(((byte)(255)))), ((int)(((byte)(255)))), ((int)(((byte)(128)))));
             Mixed.Dock = DockStyle.Fill;
@@ -117,9 +116,9 @@
             Mixed.TabStop = true;
             Mixed.Text = "Mi&xed: leave working directory untouched, reset index";
             Mixed.UseVisualStyleBackColor = false;
-            // 
+            //
             // Keep
-            // 
+            //
             Keep.AutoSize = true;
             Keep.BackColor = Color.FromArgb(((int)(((byte)(255)))), ((int)(((byte)(255)))), ((int)(((byte)(128)))));
             Keep.Dock = DockStyle.Fill;
@@ -132,9 +131,9 @@
             Keep.Text = "&Keep: update working directory to the commit \r\n(abort if there are local changes)" +
     ", reset index";
             Keep.UseVisualStyleBackColor = false;
-            // 
+            //
             // Merge
-            // 
+            //
             Merge.AutoSize = true;
             Merge.BackColor = Color.FromArgb(((int)(((byte)(255)))), ((int)(((byte)(255)))), ((int)(((byte)(128)))));
             Merge.Dock = DockStyle.Fill;
@@ -147,11 +146,12 @@
             Merge.Text = "&Merge: update working directory to the commit and keep local changes \r\n(abort if " +
     "there are conflicts), reset index";
             Merge.UseVisualStyleBackColor = false;
-            // 
+            //
             // Hard
-            // 
+            //
             Hard.AutoSize = true;
             Hard.BackColor = Color.FromArgb(((int)(((byte)(255)))), ((int)(((byte)(128)))), ((int)(((byte)(128)))));
+            Soft.Checked = true;
             Hard.Dock = DockStyle.Fill;
             Hard.ForeColor = Color.Black;
             Hard.Location = new Point(3, 171);
@@ -162,9 +162,9 @@
             Hard.Text = "&Hard: reset working directory and index\r\n(discard ALL local changes, even uncommi" +
     "tted changes)";
             Hard.UseVisualStyleBackColor = false;
-            // 
+            //
             // _NO_TRANSLATE_BranchInfo
-            // 
+            //
             _NO_TRANSLATE_BranchInfo.AutoSize = true;
             _NO_TRANSLATE_BranchInfo.Dock = DockStyle.Fill;
             _NO_TRANSLATE_BranchInfo.Location = new Point(7, 3);
@@ -173,9 +173,9 @@
             _NO_TRANSLATE_BranchInfo.Size = new Size(455, 13);
             _NO_TRANSLATE_BranchInfo.TabIndex = 5;
             _NO_TRANSLATE_BranchInfo.Text = "##Reset branch \'{0}\' to:";
-            // 
+            //
             // commitSummaryUserControl1
-            // 
+            //
             commitSummaryUserControl1.AutoSize = true;
             commitSummaryUserControl1.AutoSizeMode = AutoSizeMode.GrowAndShrink;
             commitSummaryUserControl1.Dock = DockStyle.Fill;
@@ -187,9 +187,9 @@
             commitSummaryUserControl1.Size = new Size(461, 150);
             commitSummaryUserControl1.TabIndex = 6;
             commitSummaryUserControl1.TabStop = false;
-            // 
+            //
             // tableLayoutPanel1
-            // 
+            //
             tableLayoutPanel1.AutoSize = true;
             tableLayoutPanel1.AutoSizeMode = AutoSizeMode.GrowAndShrink;
             tableLayoutPanel1.ColumnCount = 1;
@@ -211,9 +211,9 @@
             tableLayoutPanel1.RowStyles.Add(new RowStyle(SizeType.Absolute, 20F));
             tableLayoutPanel1.Size = new Size(469, 459);
             tableLayoutPanel1.TabIndex = 7;
-            // 
+            //
             // flowLayoutPanel1
-            // 
+            //
             flowLayoutPanel1.AutoSize = true;
             flowLayoutPanel1.AutoSizeMode = AutoSizeMode.GrowAndShrink;
             flowLayoutPanel1.Controls.Add(Cancel);
@@ -225,9 +225,9 @@
             flowLayoutPanel1.Name = "flowLayoutPanel1";
             flowLayoutPanel1.Size = new Size(461, 29);
             flowLayoutPanel1.TabIndex = 10;
-            // 
+            //
             // Cancel
-            // 
+            //
             Cancel.DialogResult = DialogResult.Cancel;
             Cancel.Location = new Point(368, 2);
             Cancel.Margin = new Padding(2);
@@ -237,9 +237,9 @@
             Cancel.Text = "Cancel";
             Cancel.UseVisualStyleBackColor = true;
             Cancel.Click += Cancel_Click;
-            // 
+            //
             // Ok
-            // 
+            //
             Ok.Location = new Point(273, 2);
             Ok.Margin = new Padding(2);
             Ok.Name = "Ok";
@@ -248,9 +248,9 @@
             Ok.Text = "OK";
             Ok.UseVisualStyleBackColor = true;
             Ok.Click += Ok_Click;
-            // 
+            //
             // FormResetCurrentBranch
-            // 
+            //
             AcceptButton = Ok;
             AutoScaleDimensions = new SizeF(96F, 96F);
             AutoScaleMode = AutoScaleMode.Dpi;

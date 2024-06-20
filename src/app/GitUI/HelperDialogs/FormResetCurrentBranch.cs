@@ -22,7 +22,7 @@ namespace GitUI.HelperDialogs
             Hard
         }
 
-        public static FormResetCurrentBranch Create(IGitUICommands commands, GitRevision revision, ResetType resetType = ResetType.Soft)
+        public static FormResetCurrentBranch Create(IGitUICommands commands, GitRevision revision, ResetType resetType = ResetType.Hard)
             => new(commands, revision ?? throw new NotSupportedException(TranslatedStrings.NoRevision), resetType);
 
         private FormResetCurrentBranch(IGitUICommands commands, GitRevision revision, ResetType resetType)

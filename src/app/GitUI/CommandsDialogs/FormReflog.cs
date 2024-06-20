@@ -152,7 +152,7 @@ namespace GitUI.CommandsDialogs
             }
 
             GitRevision gitRevision = UICommands.Module.GetRevision(GetShaOfRefLine());
-            FormResetCurrentBranch.ResetType resetType = _isDirtyDir ? FormResetCurrentBranch.ResetType.Soft : FormResetCurrentBranch.ResetType.Hard;
+            FormResetCurrentBranch.ResetType resetType = FormResetCurrentBranch.ResetType.Hard;
             UICommands.DoActionOnRepo(() =>
             {
                 using FormResetCurrentBranch form = FormResetCurrentBranch.Create(UICommands, gitRevision, resetType);
