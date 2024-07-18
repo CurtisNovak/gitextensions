@@ -230,6 +230,7 @@ namespace GitUI
             _gridView.ShowCellToolTips = false;
             _gridView.AuthorHighlighting = _authorHighlighting;
 
+            _gridView.PreviewKeyDown += (_, e) => _quickSearchProvider.OnPreviewKeyDown(e);
             _gridView.KeyPress += (_, e) => _quickSearchProvider.OnKeyPress(e);
             _gridView.MouseDown += OnGridViewMouseDown;
             _gridView.CellMouseDown += OnGridViewCellMouseDown;
@@ -417,7 +418,7 @@ namespace GitUI
             PerformRefreshRevisions();
         }
 
-        private void InitiateRefAction(IReadOnlyList<IGitRef>? gitRefs, Action<IGitRef> action, FormQuickGitRefSelector.Action actionLabel)
+        private void InitiateRefAction(IReadOnlyList<IGitRef>? gitRefs, Action<IGitRef> action, FormQuickGitRefSelector.QuickAction actionLabel)
         {
             if (gitRefs?.Count is not > 0)
             {
@@ -1696,7 +1697,7 @@ namespace GitUI
             InitiateRefAction(
                 new GitRefListsForRevision(selectedRevision).GetRenameableLocalBranches(),
                 gitRef => UICommands.StartRenameDialog(ParentForm, gitRef.Name),
-                FormQuickGitRefSelector.Action.Rename);
+                FormQuickGitRefSelector.QuickAction.Rename);
         }
 
         private void DeleteRef()
@@ -1724,7 +1725,7 @@ namespace GitUI
                         UICommands.StartDeleteBranchDialog(ParentForm, gitRef.Name);
                     }
                 },
-                FormQuickGitRefSelector.Action.Delete);
+                FormQuickGitRefSelector.QuickAction.Delete);
         }
 
         private void OnGridViewMouseDown(object sender, MouseEventArgs e)
