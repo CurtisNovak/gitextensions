@@ -17,25 +17,6 @@ public partial class AnsiEscapeUtilities
     private const int _boldOffset = 8;
 
     /// <summary>
-    /// Override Git colors from GE theme color.
-    /// </summary>
-    /// <param name="key">The Git config key: https://git-scm.com/docs/git-config#Documentation/git-config.txt-colordiffltslotgt.</param>
-    /// <param name="appBackColor">The back color to add, fore color to be derived from it.</param>
-    /// <returns>The GitConfigItem.</returns>
-    public static GitConfigItem SetUnsetGitColor(
-                    string key,
-                    AppColor appBackColor)
-    {
-        // Override the Git default coloring (mask the alpha for Git)
-        Color backColor = appBackColor.GetThemeColor();
-        int back = backColor.ToArgb() & 0xffffff;
-        Color foreColor = ColorHelper.GetForeColorForBackColor(backColor);
-        int fore = foreColor.ToArgb() & 0xffffff;
-
-        return new GitConfigItem(key, $"#{fore:x6} #{back:x6}");
-    }
-
-    /// <summary>
     /// Debug print colors similar to https://github.com/robertknight/konsole/raw/master/tests/color-spaces.pl
     /// </summary>
     public static void PrintColors(StringBuilder sb, List<TextMarker> textMarkers)
@@ -346,7 +327,7 @@ public partial class AnsiEscapeUtilities
         if (themeColors && !reverse
             && (currentBack.id < 0 || backColor is null)
             && foreColor is null
-            && currentFore.id is 1 or 2 && !currentFore.dim && !currentFore.bold)
+            && currentFore.id is 1 or 2 && !currentFore.dim)
         {
             // Assume this is a fit for the theme colors with reverse color (e.g. difftastic)
             reverse = true;
