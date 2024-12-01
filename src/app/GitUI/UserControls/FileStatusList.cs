@@ -420,7 +420,7 @@ namespace GitUI
             SetDeleteSearchButtonVisibility();
             SetFindInCommitFilesGitGrepWatermarkVisibility();
 
-            int top = _NO_TRANSLATE_FilterComboBox.Visible ? _NO_TRANSLATE_FilterComboBox.Bottom + _NO_TRANSLATE_FilterComboBox.Margin.Top + _NO_TRANSLATE_FilterComboBox.Margin.Bottom : 0;
+            int top = GetFileStatusListTop();
             int height = ClientRectangle.Height - top - FileStatusListView.Margin.Top - FileStatusListView.Margin.Bottom;
             FileStatusListView.SetBounds(0, top, 0, height, BoundsSpecified.Y | BoundsSpecified.Height);
         }
@@ -1061,6 +1061,12 @@ namespace GitUI
                     firstSelectedItem.Focused = true;
                     firstSelectedItem.Selected = true;
                     firstSelectedItem.EnsureVisible();
+
+                    ListViewGroup? group = firstSelectedItem?.Group;
+                    if (group?.CollapsedState is ListViewGroupCollapsedState.Collapsed)
+                    {
+                        group.CollapsedState = ListViewGroupCollapsedState.Expanded;
+                    }
                 }
             }
             finally
@@ -1111,7 +1117,7 @@ namespace GitUI
         {
             // Show "Files loading" below the filterbox
             NoFiles.Visible = false;
-            int top = _NO_TRANSLATE_FilterComboBox.Visible ? _NO_TRANSLATE_FilterComboBox.Bottom + _NO_TRANSLATE_FilterComboBox.Margin.Top + _NO_TRANSLATE_FilterComboBox.Margin.Bottom : 0;
+            int top = GetFileStatusListTop();
             LoadingFiles.Top = top;
             LoadingFiles.Visible = true;
             LoadingFiles.BringToFront();
@@ -1121,6 +1127,11 @@ namespace GitUI
             FileStatusListView.Items.Clear();
             FileStatusListView.EndUpdate();
         }
+
+        private int GetFileStatusListTop()
+            => _NO_TRANSLATE_FilterComboBox.Visible ? _NO_TRANSLATE_FilterComboBox.Bottom + _NO_TRANSLATE_FilterComboBox.Margin.Top + _NO_TRANSLATE_FilterComboBox.Margin.Bottom
+                : cboFindInCommitFilesGitGrep.Visible ? cboFindInCommitFilesGitGrep.Bottom + cboFindInCommitFilesGitGrep.Margin.Top + cboFindInCommitFilesGitGrep.Margin.Bottom
+                : 0;
 
         private void UpdateFileStatusListView(IReadOnlyList<FileStatusWithDescription> items, bool updateCausedByFilter = false)
         {
