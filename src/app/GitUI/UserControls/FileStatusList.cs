@@ -54,7 +54,7 @@ namespace GitUI
         [GeneratedRegex(@"(^|\s)-e(\s|\s+['""])", RegexOptions.ExplicitCapture)]
         private static partial Regex GrepStringRegex();
 
-        public delegate void EnterEventHandler(object sender, EnterEventArgs e);
+        public delegate void EnterEventHandler(object? sender, EnterEventArgs e);
 
         public event EventHandler? SelectedIndexChanged;
         public event EventHandler? DataSourceChanged;
@@ -452,9 +452,13 @@ namespace GitUI
         [DefaultValue(true)]
         public bool IsEmpty => GitItemStatuses is null || !GitItemStatuses.Any();
 
+        [Browsable(false)]
+        [DefaultValue(true)]
+        public bool HasSelection => SelectedIndex != -1;
+
         [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         [Browsable(false)]
-        public int SelectedIndex
+        private int SelectedIndex
         {
             get
             {
@@ -508,7 +512,7 @@ namespace GitUI
 
         [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         [Browsable(false)]
-        public IEnumerable<GitItemStatus> SelectedGitItems
+        public IReadOnlyList<GitItemStatus> SelectedGitItems
         {
             set
             {
@@ -606,41 +610,45 @@ namespace GitUI
             return (image, prefix, text, suffix, prefixTextStartX, textWidth, textMaxWidth);
         }
 
-        public int GetNextIndex(bool searchBackward, bool loop)
+        public FileStatusItem? SelectNextItem(bool backwards, bool loop, bool notify = true)
         {
             int curIdx = SelectedIndex;
 
             if (curIdx < 0)
             {
-                return -1;
+                return null;
             }
 
             ListViewItem currentItem = FileStatusListView.Items[curIdx];
             ListViewGroup? currentGroup = currentItem.Group;
             if (currentGroup is null)
             {
-                return curIdx;
+                return null;
             }
 
-            if (searchBackward)
+            if (backwards)
             {
                 ListViewItem? nextItem = FindPrevItemInGroups();
                 if (nextItem is null)
                 {
-                    return loop ? GetLastIndex() : curIdx;
+                    SetSelectedIndex(loop ? GetLastIndex() : curIdx, notify);
+                    return SelectedItem;
                 }
 
-                return nextItem.Index;
+                SetSelectedIndex(nextItem.Index, notify);
+                return SelectedItem;
             }
             else
             {
                 ListViewItem? nextItem = FindNextItemInGroups();
                 if (nextItem is null)
                 {
-                    return loop ? GetFirstIndex() : curIdx;
+                    SetSelectedIndex(loop ? GetFirstIndex() : curIdx, notify);
+                    return SelectedItem;
                 }
 
-                return nextItem.Index;
+                SetSelectedIndex(nextItem.Index, notify);
+                return SelectedItem;
             }
 
             ListViewItem? FindPrevItemInGroups()
@@ -941,7 +949,7 @@ namespace GitUI
             NoFiles.Text = text;
         }
 
-        public void SetSelectedIndex(int idx, bool notify)
+        private void SetSelectedIndex(int idx, bool notify)
         {
             _enableSelectedIndexChangeEvent = notify;
             try
@@ -1434,81 +1442,17 @@ namespace GitUI
 
         public void SelectPreviousVisibleItem()
         {
-            if (FileStatusListView.Items.Count <= 1)
+            if (SelectNextItem(backwards: true, loop: true) is null)
             {
-                return;
-            }
-
-            if (FileStatusListView.Groups.Count == 0)
-            {
-                int index = SelectedIndex == 0 ? FileStatusListView.Items.Count - 1 : SelectedIndex - 1;
-                ListViewItem item = FileStatusListView.Items[index];
-                item.Selected = true;
-                item.EnsureVisible();
-            }
-
-            ListViewItem? selectedItemFound = null;
-            for (int i = FileStatusListView.Groups.Count - 1; i >= 0; i--)
-            {
-                ListViewGroup group = FileStatusListView.Groups[i];
-                IEnumerable<ListViewItem> groupItems = FileStatusListView.Items
-                    .Cast<ListViewItem>()
-                    .Where(item => item.Group == group)
-                    .Reverse();
-                foreach (ListViewItem item in groupItems)
-                {
-                    if (selectedItemFound is not null)
-                    {
-                        selectedItemFound.Selected = false;
-                        item.Selected = true;
-                        item.EnsureVisible();
-                        return;
-                    }
-
-                    if (item.Selected)
-                    {
-                        selectedItemFound = item;
-                    }
-                }
+                SelectFirstVisibleItem();
             }
         }
 
         public void SelectNextVisibleItem()
         {
-            if (FileStatusListView.Items.Count <= 1)
+            if (SelectNextItem(backwards: false, loop: true) is null)
             {
-                return;
-            }
-
-            if (FileStatusListView.Groups.Count == 0)
-            {
-                int index = SelectedIndex >= FileStatusListView.Items.Count - 1 ? 0 : SelectedIndex + 1;
-                ListViewItem item = FileStatusListView.Items[index];
-                item.Selected = true;
-                item.EnsureVisible();
-            }
-
-            ListViewItem? selectedItemFound = null;
-            foreach (object group in FileStatusListView.Groups)
-            {
-                IEnumerable<ListViewItem> groupItems = FileStatusListView.Items
-                    .Cast<ListViewItem>()
-                    .Where(item => item.Group == group);
-                foreach (ListViewItem item in groupItems)
-                {
-                    if (selectedItemFound is not null)
-                    {
-                        selectedItemFound.Selected = false;
-                        item.Selected = true;
-                        item.EnsureVisible();
-                        return;
-                    }
-
-                    if (item.Selected)
-                    {
-                        selectedItemFound = item;
-                    }
-                }
+                SelectFirstVisibleItem();
             }
         }
 
@@ -1646,7 +1590,7 @@ namespace GitUI
             _formFindInCommitFilesGitGrep.Focus();
         }
 
-        private void FileStatusListView_DoubleClick(object sender, EventArgs e)
+        private void FileStatusListView_DoubleClick(object? sender, EventArgs e)
         {
             if (DoubleClick is null)
             {
@@ -1730,7 +1674,7 @@ namespace GitUI
             }
         }
 
-        private void FileStatusListView_GroupMouseDown(object sender, ListViewGroupMouseEventArgs e)
+        private void FileStatusListView_GroupMouseDown(object? sender, ListViewGroupMouseEventArgs e)
         {
             if (e.Button == MouseButtons.Left)
             {
@@ -1739,7 +1683,7 @@ namespace GitUI
             }
         }
 
-        private void FileStatusListView_KeyDown(object sender, KeyEventArgs e)
+        private void FileStatusListView_KeyDown(object? sender, KeyEventArgs e)
         {
             switch (e.KeyData)
             {
@@ -1758,7 +1702,7 @@ namespace GitUI
             }
         }
 
-        private void FileStatusListView_MouseDown(object sender, MouseEventArgs e)
+        private void FileStatusListView_MouseDown(object? sender, MouseEventArgs e)
         {
             // SELECT
             if (e.Button == MouseButtons.Right)
@@ -1797,7 +1741,7 @@ namespace GitUI
             }
         }
 
-        private void FileStatusListView_MouseUp(object sender, MouseEventArgs e)
+        private void FileStatusListView_MouseUp(object? sender, MouseEventArgs e)
         {
             // Release the drag capture
             if (e.Button == MouseButtons.Left)
@@ -1806,7 +1750,7 @@ namespace GitUI
             }
         }
 
-        private void FileStatusListView_MouseMove(object sender, MouseEventArgs e)
+        private void FileStatusListView_MouseMove(object? sender, MouseEventArgs e)
         {
             ListView? listView = sender as ListView;
 
@@ -1893,7 +1837,7 @@ namespace GitUI
             SelectedIndexChanged?.Invoke(this, EventArgs.Empty);
         }
 
-        private void FileStatusListView_Scroll(object sender, ScrollEventArgs e)
+        private void FileStatusListView_Scroll(object? sender, ScrollEventArgs e)
         {
             if (e.Type == ScrollEventType.ThumbTrack)
             {
@@ -1921,7 +1865,7 @@ namespace GitUI
             FilterFiles(value);
         }
 
-        private void DeleteFilterButton_Click(object sender, EventArgs e)
+        private void DeleteFilterButton_Click(object? sender, EventArgs e)
         {
             SetFilter(string.Empty);
         }
@@ -2005,7 +1949,7 @@ namespace GitUI
             }
         }
 
-        private void FilterComboBox_TextUpdate(object sender, EventArgs e)
+        private void FilterComboBox_TextUpdate(object? sender, EventArgs e)
         {
             // show DeleteFilterButton at once
             SetDeleteFilterButtonVisibility();
@@ -2022,38 +1966,38 @@ namespace GitUI
             _filterSubject.OnNext(filterText);
         }
 
-        private void FilterComboBox_MouseEnter(object sender, EventArgs e)
+        private void FilterComboBox_MouseEnter(object? sender, EventArgs e)
         {
             FilterToolTip.SetToolTip(_NO_TRANSLATE_FilterComboBox, _toolTipText);
         }
 
-        private void FilterComboBox_SelectedIndexChanged(object sender, EventArgs e)
+        private void FilterComboBox_SelectedIndexChanged(object? sender, EventArgs e)
         {
             FilterFiles(_NO_TRANSLATE_FilterComboBox.Text);
         }
 
-        private void FilterComboBox_GotFocus(object sender, EventArgs e)
+        private void FilterComboBox_GotFocus(object? sender, EventArgs e)
         {
             SetFilterWatermarkLabelVisibility();
         }
 
-        private void FilterComboBox_LostFocus(object sender, EventArgs e)
+        private void FilterComboBox_LostFocus(object? sender, EventArgs e)
         {
             SetFilterWatermarkLabelVisibility();
         }
 
-        private void FilterWatermarkLabel_Click(object sender, EventArgs e)
+        private void FilterWatermarkLabel_Click(object? sender, EventArgs e)
         {
             _NO_TRANSLATE_FilterComboBox.Focus();
         }
 
-        private void FilterComboBox_SizeChanged(object sender, EventArgs e)
+        private void FilterComboBox_SizeChanged(object? sender, EventArgs e)
         {
             // strangely it does not invalidate itself on resize so its look becomes distorted
             _NO_TRANSLATE_FilterComboBox.Invalidate();
         }
 
-        private void cboFindInCommitFilesGitGrep_TextUpdate(object sender, EventArgs e)
+        private void cboFindInCommitFilesGitGrep_TextUpdate(object? sender, EventArgs e)
         {
             FindInCommitFilesGitGrep(cboFindInCommitFilesGitGrep.Text);
         }
@@ -2091,70 +2035,78 @@ namespace GitUI
 
                 void AddToSearchFilter(string search)
                 {
-                    if (cboFindInCommitFilesGitGrep.Items.IndexOf(search) is int index && index >= 0)
+                    try
                     {
-                        if (index == 0)
-                        {
-                            return;
-                        }
-
+                        cboFindInCommitFilesGitGrep.SelectedIndexChanged -= cboFindInCommitFilesGitGrep_SelectedIndexChanged;
                         cboFindInCommitFilesGitGrep.BeginUpdate();
-                        cboFindInCommitFilesGitGrep.Items.RemoveAt(index);
-                        cboFindInCommitFilesGitGrep.Items.Insert(0, search);
-                        cboFindInCommitFilesGitGrep.Text = search;
-                        cboFindInCommitFilesGitGrep.SelectionStart = cboFindInCommitFilesGitGrep.Text.Length;
-                        cboFindInCommitFilesGitGrep.SelectionLength = 0;
+                        if (cboFindInCommitFilesGitGrep.Items.IndexOf(search) is int index && index >= 0)
+                        {
+                            if (index == 0)
+                            {
+                                return;
+                            }
+
+                            cboFindInCommitFilesGitGrep.Items.RemoveAt(index);
+                            cboFindInCommitFilesGitGrep.Items.Insert(0, search);
+                            cboFindInCommitFilesGitGrep.Text = search;
+                            cboFindInCommitFilesGitGrep.SelectionStart = cboFindInCommitFilesGitGrep.Text.Length;
+                            cboFindInCommitFilesGitGrep.SelectionLength = 0;
+                        }
+                        else
+                        {
+                            const int SearchFilterMaxLength = 30;
+                            if (cboFindInCommitFilesGitGrep.Items.Count >= SearchFilterMaxLength)
+                            {
+                                cboFindInCommitFilesGitGrep.Items.RemoveAt(SearchFilterMaxLength - 1);
+                            }
+
+                            cboFindInCommitFilesGitGrep.Items.Insert(0, search);
+                        }
+
+                        if (_formFindInCommitFilesGitGrep?.IsDisposed is false)
+                        {
+                            _formFindInCommitFilesGitGrep.SetSearchItems(cboFindInCommitFilesGitGrep.Items);
+                            if (cboFindInCommitFilesGitGrep.Visible)
+                            {
+                                _formFindInCommitFilesGitGrep.GitGrepExpressionText = search;
+                            }
+                        }
+                    }
+                    finally
+                    {
                         cboFindInCommitFilesGitGrep.EndUpdate();
-                    }
-                    else
-                    {
-                        const int SearchFilterMaxLength = 30;
-                        if (cboFindInCommitFilesGitGrep.Items.Count >= SearchFilterMaxLength)
-                        {
-                            cboFindInCommitFilesGitGrep.Items.RemoveAt(SearchFilterMaxLength - 1);
-                        }
-
-                        cboFindInCommitFilesGitGrep.Items.Insert(0, search);
-                    }
-
-                    if (_formFindInCommitFilesGitGrep?.IsDisposed is false)
-                    {
-                        _formFindInCommitFilesGitGrep.SetSearchItems(cboFindInCommitFilesGitGrep.Items);
-                        if (cboFindInCommitFilesGitGrep.Visible)
-                        {
-                            _formFindInCommitFilesGitGrep.GitGrepExpressionText = search;
-                        }
+                        cboFindInCommitFilesGitGrep.SelectedIndexChanged += cboFindInCommitFilesGitGrep_SelectedIndexChanged;
                     }
                 }
             });
         }
 
-        private void cboFindInCommitFilesGitGrep_SelectedIndexChanged(object sender, EventArgs e)
+        private void cboFindInCommitFilesGitGrep_SelectedIndexChanged(object? sender, EventArgs e)
         {
             FindInCommitFilesGitGrep(cboFindInCommitFilesGitGrep.Text, delay: 0);
         }
 
-        private void cboFindInCommitFilesGitGrep_GotFocus(object sender, EventArgs e)
+        private void cboFindInCommitFilesGitGrep_GotFocus(object? sender, EventArgs e)
         {
             SetFindInCommitFilesGitGrepWatermarkVisibility();
         }
 
-        private void cboFindInCommitFilesGitGrep_LostFocus(object sender, EventArgs e)
+        private void cboFindInCommitFilesGitGrep_LostFocus(object? sender, EventArgs e)
         {
             SetFindInCommitFilesGitGrepWatermarkVisibility();
         }
 
-        private void cboFindInCommitFilesGitGrep_SizeChanged(object sender, EventArgs e)
+        private void cboFindInCommitFilesGitGrep_SizeChanged(object? sender, EventArgs e)
         {
             cboFindInCommitFilesGitGrep.Invalidate();
         }
 
-        private void lblFindInCommitFilesGitGrepWatermark_Click(object sender, EventArgs e)
+        private void lblFindInCommitFilesGitGrepWatermark_Click(object? sender, EventArgs e)
         {
             cboFindInCommitFilesGitGrep.Focus();
         }
 
-        private void DeleteSearchButton_Click(object sender, EventArgs e)
+        private void DeleteSearchButton_Click(object? sender, EventArgs e)
         {
             cboFindInCommitFilesGitGrep.Text = "";
             FindInCommitFilesGitGrep(cboFindInCommitFilesGitGrep.Text, delay: 0);
