@@ -379,7 +379,11 @@ namespace GitUI
             cboFindInCommitFilesGitGrep.Visible = visible;
             if (visible)
             {
-                ActiveControl = cboFindInCommitFilesGitGrep;
+                // Focus the box if it is becoming shown, but not on init of parent controls (which broke the form's focus management)
+                if (ActiveControl is not null)
+                {
+                    ActiveControl = cboFindInCommitFilesGitGrep;
+                }
 
                 // Adjust sizes "automatically" changed by visibility
                 cboFindInCommitFilesGitGrep.Top = 0;
@@ -1442,7 +1446,7 @@ namespace GitUI
 
         public void SelectPreviousVisibleItem()
         {
-            if (SelectNextItem(backwards: true, loop: true) is null)
+            if (SelectNextItem(backwards: true, loop: false) is null)
             {
                 SelectFirstVisibleItem();
             }
@@ -1450,7 +1454,7 @@ namespace GitUI
 
         public void SelectNextVisibleItem()
         {
-            if (SelectNextItem(backwards: false, loop: true) is null)
+            if (SelectNextItem(backwards: false, loop: false) is null)
             {
                 SelectFirstVisibleItem();
             }
