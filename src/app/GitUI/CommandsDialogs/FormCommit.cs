@@ -2927,7 +2927,7 @@ namespace GitUI.CommandsDialogs
                             len = lineLength - offset;
                             if (len > 0)
                             {
-                                Message.ChangeTextColor(line, offset, len, Color.Red);
+                                Message.ChangeTextColor(line, offset, len, Color.Red.AdaptTextColor());
                             }
                         }
                     }
@@ -3408,7 +3408,7 @@ namespace GitUI.CommandsDialogs
             {
                 CommitAndPush.BackColor = PushForced
                     ? OtherColors.AmendButtonForcedColor
-                    : SystemColors.ButtonFace.AdaptBackColor();
+                    : SystemColors.ButtonFace;
 
                 CommitAndPush.SetForeColorForBackColor();
             }
