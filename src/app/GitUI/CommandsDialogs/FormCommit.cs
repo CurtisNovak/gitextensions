@@ -1195,18 +1195,11 @@ namespace GitUI.CommandsDialogs
 
             if (item?.Item is null)
             {
+                SelectedDiff.Clear();
                 return;
             }
 
             SelectedDiff.InvokeAndForget(() => SelectedDiff.ViewChangesAsync(item, openWithDiffTool: OpenWithDiffTool, cancellationToken: _viewChangesSequence.Next()));
-        }
-
-        private void ClearDiffViewIfNoFilesLeft()
-        {
-            if ((Staged.IsEmpty && Unstaged.IsEmpty) || (!Unstaged.SelectedItems.Any() && !Staged.SelectedItems.Any()))
-            {
-                SelectedDiff.Clear();
-            }
         }
 
         private void CommitClick(object sender, EventArgs e)
@@ -1636,12 +1629,11 @@ namespace GitUI.CommandsDialogs
                 return;
             }
 
-            ClearDiffViewIfNoFilesLeft();
             Staged.ClearSelected();
 
             _currentSelection = Unstaged.SelectedItems.Items().ToList();
             FileStatusItem? item = Unstaged.SelectedItem;
-            ShowChanges(item, false);
+            ShowChanges(item, staged: false);
 
             Unstaged.ContextMenuStrip = (item?.Item.IsSubmodule ?? false) ? UnstagedSubmoduleContext : UnstagedFileContext;
         }
@@ -1711,17 +1703,14 @@ namespace GitUI.CommandsDialogs
 
         private void Unstaged_Enter(object sender, EnterEventArgs e)
         {
-            if (_currentFilesList != Unstaged)
+            _currentFilesList = Unstaged;
+            _skipUpdate = false;
+            if (!Unstaged.HasSelection)
             {
-                _currentFilesList = Unstaged;
-                _skipUpdate = false;
-                if (!e.ByMouse && !Unstaged.HasSelection)
-                {
-                    Unstaged.SelectFirstVisibleItem();
-                }
-
-                UnstagedSelectionChanged(Unstaged, EventArgs.Empty);
+                Unstaged.SelectFirstVisibleItem();
             }
+
+            UnstagedSelectionChanged(Unstaged, EventArgs.Empty);
         }
 
         private void Unstaged_FilterChanged(object sender, EventArgs e)
@@ -1953,12 +1942,11 @@ namespace GitUI.CommandsDialogs
                 return;
             }
 
-            ClearDiffViewIfNoFilesLeft();
-
             Unstaged.ClearSelected();
+
             _currentSelection = Staged.SelectedItems.Items().ToList();
-            FileStatusItem item = Staged.SelectedItem;
-            ShowChanges(item, true);
+            FileStatusItem? item = Staged.SelectedItem;
+            ShowChanges(item, staged: true);
         }
 
         private void Staged_DataSourceChanged(object sender, EventArgs e)
@@ -1970,17 +1958,14 @@ namespace GitUI.CommandsDialogs
 
         private void Staged_Enter(object sender, EnterEventArgs e)
         {
-            if (_currentFilesList != Staged)
+            _currentFilesList = Staged;
+            _skipUpdate = false;
+            if (!Staged.HasSelection)
             {
-                _currentFilesList = Staged;
-                _skipUpdate = false;
-                if (!e.ByMouse && !Staged.HasSelection)
-                {
-                    Staged.SelectFirstVisibleItem();
-                }
-
-                StagedSelectionChanged(Staged, EventArgs.Empty);
+                Staged.SelectFirstVisibleItem();
             }
+
+            StagedSelectionChanged(Staged, EventArgs.Empty);
         }
 
         private void Stage(IReadOnlyList<GitItemStatus> items)
