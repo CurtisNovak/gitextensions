@@ -71,7 +71,7 @@ namespace GitCommandsTests.Settings
             });
 
             // Assert
-            Assert.That(storedValue, Is.EqualTo(defaultValue));
+            ClassicAssert.That(storedValue, Is.EqualTo(defaultValue));
         }
 
         [Test]
@@ -112,21 +112,21 @@ namespace GitCommandsTests.Settings
             {
                 if (isISetting)
                 {
-                    Assert.That(storedValue, Is.EqualTo(value ?? string.Empty));
+                    ClassicAssert.That(storedValue, Is.EqualTo(value ?? string.Empty));
                 }
                 else
                 {
-                    Assert.That(storedValue, Is.EqualTo(value ?? defaultValue));
+                    ClassicAssert.That(storedValue, Is.EqualTo(value ?? defaultValue));
                 }
             }
             else if (Type.GetTypeCode(property.PropertyType) == TypeCode.DateTime)
             {
                 // We keep only the date
-                Assert.That(storedValue, Is.EqualTo(((DateTime)value).Date));
+                ClassicAssert.That(storedValue, Is.EqualTo(((DateTime)value).Date));
             }
             else
             {
-                Assert.That(storedValue, Is.EqualTo(value));
+                ClassicAssert.That(storedValue, Is.EqualTo(value));
             }
         }
 
@@ -171,6 +171,9 @@ namespace GitCommandsTests.Settings
 
                 yield return (properties[nameof(AppSettings.TelemetryEnabled)], null, true, false);
                 yield return (properties[nameof(AppSettings.AutoNormaliseBranchName)], true, false, false);
+                yield return (properties[nameof(AppSettings.FileStatusFindInFilesGitGrepTypeIndex)], 1, isNotNullable, isISetting);
+                yield return (properties[nameof(AppSettings.FileStatusMergeSingleItemWithFolder)], false, isNotNullable, isISetting);
+                yield return (properties[nameof(AppSettings.FileStatusShowGroupNodesInFlatList)], false, isNotNullable, isISetting);
                 yield return (properties[nameof(AppSettings.RememberAmendCommitState)], true, false, false);
                 yield return (properties[nameof(AppSettings.StashKeepIndex)], false, false, false);
                 yield return (properties[nameof(AppSettings.DontConfirmStashDrop)], false, false, false);
