@@ -92,6 +92,7 @@ namespace GitUI
             FileStatusListView.ShowRootLines = false;
             FileStatusListView.Size = new Size(682, 439);
             FileStatusListView.TabIndex = 9;
+            FileStatusListView.BeforeExpand += FileStatusListView_BeforeExpand;
             FileStatusListView.DrawNode += FileStatusListView_DrawNode;
             FileStatusListView.DoubleClick += FileStatusListView_DoubleClick;
             FileStatusListView.KeyDown += FileStatusListView_KeyDown;
@@ -150,7 +151,7 @@ namespace GitUI
             FilterWatermarkLabel.ForeColor = SystemColors.GrayText;
             FilterWatermarkLabel.Location = new Point(0, 48);
             FilterWatermarkLabel.Name = "FilterWatermarkLabel";
-            FilterWatermarkLabel.Padding = new Padding(2, 3, 2, 2);
+            FilterWatermarkLabel.Padding = new Padding(2, 3, 2, 0);
             FilterWatermarkLabel.Size = new Size(210, 20);
             FilterWatermarkLabel.TabIndex = 6;
             FilterWatermarkLabel.Text = "Filter files using a regular expression...";
