@@ -5,8 +5,10 @@ using GitCommands.UserRepositoryHistory;
 using GitExtensions.Extensibility;
 using GitExtensions.Extensibility.Git;
 using GitExtUtils.GitUI;
+using GitExtUtils.GitUI.Theming;
 using GitUI.Infrastructure;
 using GitUI.Properties;
+using GitUI.Theming;
 using GitUI.UserControls;
 using Microsoft;
 using ResourceManager;
@@ -110,8 +112,8 @@ Inactive remote is completely invisible to git.");
             // Persist the text of the buttons to be able to restore it whenever the color is reset
             btnRemoteColor.Tag = btnRemoteColor.Text;
 
-            // Set the minimum height of the color button to be the same as the reset button
-            btnRemoteColor.MinimumSize = new Size(DpiUtil.Scale(60), btnRemoteColorReset.Height);
+            // Set the minimum height of the color button after initialization
+            btnRemoteColor.MinimumSize = new Size(DpiUtil.Scale(60), btnRemoteColor.Height);
 
             // remove text from 'new' and 'delete' buttons because now they are represented by icons
             New.Text = string.Empty;
@@ -378,6 +380,10 @@ Inactive remote is completely invisible to git.");
 
         private void btnRemoteColor_Click(object sender, EventArgs e)
         {
+            colorDialog.Color = btnRemoteColor.BackColor == Color.Transparent
+                ? AppColor.RemoteBranch.GetThemeColor()
+                : btnRemoteColor.BackColor;
+
             if (colorDialog.ShowDialog() == DialogResult.OK)
             {
                 SetRemoteColor(colorDialog.Color);
