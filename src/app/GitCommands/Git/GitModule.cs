@@ -871,14 +871,21 @@ namespace GitCommands
 
         public (int? First, int? Second) GetCommitRangeDiffCount(ObjectId firstId, ObjectId secondId)
         {
-            if (firstId == secondId)
+            string second = secondId.IsArtificial ? "HEAD" : secondId.ToString();
+            return GetRevListLeftRightCount(firstId, second);
+        }
+
+        private (int? First, int? Second) GetRevListLeftRightCount(ObjectId firstId, string secondRef)
+        {
+            string firstRef = firstId.IsArtificial ? "HEAD" : firstId.ToString();
+            if (firstRef == secondRef)
             {
                 return (0, 0);
             }
 
             GitArgumentBuilder args = new("rev-list")
             {
-                $"{firstId}...{secondId}".Quote(),
+                $"{firstRef}...{secondRef}".Quote(),
                 "--count",
                 "--left-right"
             };
@@ -895,9 +902,7 @@ namespace GitCommands
 
         public string GetCommitCountString(ObjectId fromId, string to)
         {
-            string from = fromId.IsArtificial ? "HEAD" : fromId.ToString();
-            int? removed = GetCommitCount(from, to);
-            int? added = GetCommitCount(to, from);
+            (int? added, int? removed) = GetRevListLeftRightCount(fromId, to);
 
             if (removed is null || added is null)
             {
@@ -2430,7 +2435,7 @@ namespace GitCommands
                 cancellationToken: cancellationToken);
         }
 
-        public ExecutionResult GetDiffFiles(string? firstRevision, string? secondRevision, bool noCache = false, bool nullSeparated = false, CancellationToken cancellationToken = default)
+        public ExecutionResult GetDiffFiles(string? firstRevision, string? secondRevision, bool noCache = false, bool rawParsable = false, CancellationToken cancellationToken = default)
         {
             noCache = noCache || firstRevision.IsArtificial() || secondRevision.IsArtificial();
 
@@ -2447,8 +2452,8 @@ namespace GitCommands
                     "--no-ext-diff",
                     "--find-renames",
                     "--find-copies",
-                    "--name-status",
-                    { nullSeparated, "-z" },
+                    { rawParsable, "--raw", "--name-status" },
+                    { rawParsable, "-z" },
                     _revisionDiffProvider.Get(firstRevision, secondRevision)
                 },
                 cache: noCache ? null : GitCommandCache,
@@ -2505,7 +2510,7 @@ namespace GitCommands
                 return status.Where(x => x.Staged == stagedStatus || x.IsStatusOnly).ToList();
             }
 
-            ExecutionResult exec = GetDiffFiles(firstRevision, secondRevision, noCache: noCache, nullSeparated: true, cancellationToken);
+            ExecutionResult exec = GetDiffFiles(firstRevision, secondRevision, noCache: noCache, rawParsable: true, cancellationToken);
             List<GitItemStatus> result = GetDiffChangedFilesFromString(exec.StandardOutput, stagedStatus);
             if (!exec.ExitedSuccessfully)
             {
@@ -2705,7 +2710,7 @@ namespace GitCommands
                 "--find-renames",
                 "--find-copies",
                 "-z",
-                "--name-status",
+                "--raw",
                 "--cached"
             };
             ExecutionResult exec = _gitExecutable.Execute(args, throwOnErrorExit: false);
@@ -2730,14 +2735,14 @@ namespace GitCommands
         }
 
         /// <summary>
-        /// Parse the output from git-diff --name-status.
+        /// Parse the output from git-diff --raw.
         /// </summary>
         /// <param name="statusString">output from the git command.</param>
         /// <param name="staged">required to determine if <see cref="StagedStatus"/> allows stage/unstage.</param>
         /// <returns>list with the parsed GitItemStatus.</returns>
         /// <seealso href="https://git-scm.com/docs/git-diff"/>
         private List<GitItemStatus> GetDiffChangedFilesFromString(string statusString, StagedStatus staged)
-            => _getAllChangedFilesOutputParser.GetAllChangedFilesFromString_v1(statusString, true, staged);
+            => _getAllChangedFilesOutputParser.GetDiffChangedFilesFromString(statusString, staged);
 
         public IReadOnlyList<GitItemStatus> GetIndexFilesWithSubmodulesStatus()
         {
@@ -2774,10 +2779,16 @@ namespace GitCommands
 
         public async Task<Patch?> GetCurrentChangesAsync(string? fileName, string? oldFileName, bool staged, string extraDiffArguments, Encoding? encoding = null, bool noLocks = false)
         {
-            string output = await _gitExecutable.GetOutputAsync(Commands.GetCurrentChanges(fileName, oldFileName, staged, extraDiffArguments, noLocks),
-                outputEncoding: LosslessEncoding).ConfigureAwait(false);
+            ExecutionResult result = await _gitExecutable.ExecuteAsync(Commands.GetCurrentChanges(fileName, oldFileName, staged, extraDiffArguments, noLocks),
+                outputEncoding: LosslessEncoding, throwOnErrorExit: false).ConfigureAwait(false);
+            if (!result.ExitedSuccessfully)
+            {
+                // occurs if a submodule in a submodule does not exist
+                Trace.WriteLine($"Failure to get current changes: {result.AllOutput}");
+                return null;
+            }
 
-            IReadOnlyList<Patch> patches = PatchProcessor.CreatePatchesFromString(output, new Lazy<Encoding>(() => encoding ?? FilesEncoding)).ToList();
+            IReadOnlyList<Patch> patches = PatchProcessor.CreatePatchesFromString(result.StandardOutput, new Lazy<Encoding>(() => encoding ?? FilesEncoding)).ToList();
 
             return GetPatch(patches, fileName, oldFileName);
         }
