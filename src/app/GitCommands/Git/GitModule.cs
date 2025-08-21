@@ -914,9 +914,8 @@ namespace GitCommands
                 return "=";
             }
 
-            return
-                (removed > 0 ? ("-" + removed) : "") +
-                (added > 0 ? ("+" + added) : "");
+            // similar to AheadBehindData
+            return $"(+{added}-{removed})";
         }
 
         public void RunGitK()
@@ -3663,6 +3662,14 @@ namespace GitCommands
 
             if (commit == oldCommit)
             {
+                return SubmoduleStatus.SameTime;
+            }
+
+            // From this on, the status is by default Modified
+
+            // Submodule directory must exist to run commands
+            if (!IsValidGitWorkingDir())
+            {
                 return SubmoduleStatus.Unknown;
             }
 
@@ -3684,7 +3691,7 @@ namespace GitCommands
 
             if (loadData)
             {
-                oldData = _commitDataManager.GetCommitData(oldCommit.ToString(), cache: true);
+                oldData = _commitDataManager.GetCommitData(oldCommit.ToString());
             }
 
             if (oldData is null)
@@ -3694,7 +3701,7 @@ namespace GitCommands
 
             if (loadData)
             {
-                data = _commitDataManager.GetCommitData(commit.ToString(), cache: true);
+                data = _commitDataManager.GetCommitData(commit.ToString());
             }
 
             if (data is null)
