@@ -2576,13 +2576,15 @@ namespace GitCommands
                 .Select(file => new GitItemStatus(file.Name)
                 {
                     // IsTracked is always true, only tracked are reported
+                    // (all with TreeId are tracked)
+                    // TreeGuid for worktree reflects Index, just for reference
                     // New/Changed/Deleted are are just set
                     IsTracked = true,
                     IsNew = false,
                     IsChanged = false,
                     IsDeleted = false,
-                    TreeGuid = file.ObjectId,
                     Staged = StagedStatus.Unset,
+                    TreeGuid = file.ObjectId,
                     IsSubmodule = file.ObjectType == GitObjectType.Commit
                 })
                 .ToList();
@@ -3216,7 +3218,9 @@ namespace GitCommands
                     // ls-files with same format as ls-tree
                     "-z",
                     { commitId == ObjectId.IndexId, "--cached", "--no-cached" },
-                    @$"--format=""{_gitTreeParser.GitTreeFormat}""",
+
+                    // TODO change to GitVersion.SupportLsFilesFormat when Extensibility.Git can be updated
+                    { GitVersion.SupportUpdateRefs, @$"--format=""{_gitTreeParser.GitTreeFormat}""", "--stage" },
                     "--",
                     fileName.QuoteNE()
                 }
@@ -3225,12 +3229,17 @@ namespace GitCommands
                     // optimized codepath, default is "--format={_gitTreeParser.GitTreeFormat}"
                     "-z",
                     { full, "-r" },
-                    commitId,
+                    { commitId is null, "HEAD", commitId.ToString() },
                     "--",
                     fileName.QuoteNE()
                 };
 
             ExecutionResult result = _gitExecutable.Execute(args, cache: isArtificial ? null : GitCommandCache, cancellationToken: cancellationToken);
+
+            if (isArtificial && !GitVersion.SupportUpdateRefs)
+            {
+                return _gitTreeParser.ParseLsFiles(result.StandardOutput);
+            }
 
             return _gitTreeParser.Parse(result.StandardOutput);
         }
@@ -3518,9 +3527,9 @@ namespace GitCommands
 
         public ObjectId? GetFileBlobHash(string fileName, ObjectId objectId)
         {
-            IEnumerable<IObjectGitItem> items = GetTree(objectId, full: true, fileName);
-            return items.Count() == 1 && items.First() is IObjectGitItem i && i.ObjectType is GitObjectType.Blob
-                ? i.ObjectId
+            IObjectGitItem[] items = GetTree(objectId, full: true, fileName).ToArray();
+            return items.Length == 1 && items[0].ObjectType is GitObjectType.Blob
+                ? items[0].ObjectId
                 : null;
         }
 
