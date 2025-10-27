@@ -39,7 +39,7 @@ namespace GitCommands
         public static readonly string NoNewLineAtTheEnd = "\\ No newline at end of file";
         public static CommandCache GitCommandCache { get; } = new();
 
-        private readonly object _lock = new();
+        private readonly Lock _lock = new();
         private readonly IIndexLockManager _indexLockManager;
         private readonly ICommitDataManager _commitDataManager;
         private readonly IGitTreeParser _gitTreeParser = new GitTreeParser();
@@ -385,7 +385,7 @@ namespace GitCommands
         }
 
         private string? _gitCommonDirectory;
-        private readonly object _gitCommonLock = new();
+        private readonly Lock _gitCommonLock = new();
 
         /// <summary>
         /// Returns git common directory.
@@ -1057,6 +1057,27 @@ namespace GitCommands
                 tagName.QuoteNE()
             };
             _gitExecutable.RunCommand(args);
+        }
+
+        /// <summary>
+        /// <para>
+        /// Gets the current branch name. This is the branch whose ref will be updated to the next commit. When the repository is
+        /// newly-initialized, this is a nonexistent ref whose name is set to the effective value of init.defaultbranch at the time
+        /// of init (unless overridden with --initial-branch).
+        /// </para>
+        /// <para>
+        /// If there is no current branch name (e.g. detached HEAD), this method returns an empty
+        /// <see cref="string"/>.
+        /// </para>
+        /// </summary>
+        public string GetCurrentBranchName()
+        {
+            GitArgumentBuilder args = new("branch") { "--show-current" };
+            ExecutionResult result = _gitExecutable.Execute(args, throwOnErrorExit: false);
+
+            result.ThrowIfErrorExit("Error retrieving current branch name");
+
+            return result.StandardOutput.TrimEnd();
         }
 
         /// <summary>
