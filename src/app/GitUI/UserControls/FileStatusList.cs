@@ -1,4 +1,4 @@
-#nullable enable
+﻿#nullable enable
 
 using System.Collections.Specialized;
 using System.ComponentModel;
@@ -480,7 +480,7 @@ public sealed partial class FileStatusList : GitModuleControl
         else if (_formFindInCommitFilesGitGrep?.Visible is not true && cboFindInCommitFilesGitGrep.Text.Length > 0)
         {
             cboFindInCommitFilesGitGrep.Text = "";
-            FindInCommitFilesGitGrep(cboFindInCommitFilesGitGrep.Text, delay: 0);
+            FindInCommitFilesGitGrep();
         }
 
         SetFileStatusListVisibility(showNoFiles: NoFiles.Visible);
@@ -535,11 +535,11 @@ public sealed partial class FileStatusList : GitModuleControl
         get
         {
             return GitItemStatusesWithDescription?.SelectMany(tuple => tuple.Statuses).AsReadOnlyList()
-                   ?? Array.Empty<GitItemStatus>();
+                   ?? [];
         }
     }
 
-    private IReadOnlyList<FileStatusWithDescription> GitItemStatusesWithDescription { get; set; } = Array.Empty<FileStatusWithDescription>();
+    private IReadOnlyList<FileStatusWithDescription> GitItemStatusesWithDescription { get; set; } = [];
 
     public bool GroupByRevision { get; set; } = false;
 
@@ -1137,13 +1137,11 @@ public sealed partial class FileStatusList : GitModuleControl
         HashSet<GitItemStatus>? previouslySelectedItems = null;
         if (updateCausedByFilter)
         {
-            previouslySelectedItems = FileStatusListView.SelectedItemTags<FileStatusItem>()
-                .Select(i => i.Item)
-                .ToHashSet();
+            previouslySelectedItems = [.. FileStatusListView.SelectedItemTags<FileStatusItem>().Select(i => i.Item)];
         }
 
         bool expandIfFewFiles = !_isFileTreeMode || _filter is not null || !string.IsNullOrEmpty(cboFindInCommitFilesGitGrep.Text);
-        (List<TreeNodeInfo> nodes, _showDiffGroups, bool filesPresent) = GetNodes(items, previouslySelectedItems, GroupByRevision, IsFilterMatch, _groupBy, _flatList, expandIfFewFiles, gitGrepState, _noItemStatuses, cancellationToken);
+        (List<TreeNodeInfo> nodes, _showDiffGroups, bool filesPresent) = GetNodes(items, GroupByRevision, IsFilterMatch, _groupBy, _flatList, expandIfFewFiles, gitGrepState, _noItemStatuses, cancellationToken);
 
         GitItemStatusesWithDescription = items;
         if (nodes.Count > 0)
@@ -1234,7 +1232,6 @@ public sealed partial class FileStatusList : GitModuleControl
 
     private static (List<TreeNodeInfo> Nodes, bool ShowDiffGroups, bool FilesPresent) GetNodes(
         IReadOnlyList<FileStatusWithDescription> items,
-        HashSet<GitItemStatus>? previouslySelectedItems,
         bool groupByRevision,
         Func<GitItemStatus, bool> isFilterMatch,
         GroupBy? groupBy,
@@ -1338,7 +1335,7 @@ public sealed partial class FileStatusList : GitModuleControl
                     }
                     else
                     {
-                        diffGroup.Nodes.AddRange(groupNode.Nodes.Cast<TreeNode>().ToArray());
+                        diffGroup.Nodes.AddRange([.. groupNode.Nodes.Cast<TreeNode>()]);
                     }
                 }
 
@@ -1553,7 +1550,7 @@ public sealed partial class FileStatusList : GitModuleControl
             (SubmoduleStatus.NewerTime, false) => nameof(Images.SubmoduleRevisionSemiUp),
             (SubmoduleStatus.OlderTime, true) => nameof(Images.SubmoduleRevisionSemiDownDirty),
             (SubmoduleStatus.OlderTime, false) => nameof(Images.SubmoduleRevisionSemiDown),
-            (SubmoduleStatus.SameTime, false) => nameof(Images.FolderSubmodule),
+            (SubmoduleStatus.SameCommit, false) => nameof(Images.FolderSubmodule),
             _ => nameof(Images.SubmoduleDirty),
         };
     }
@@ -1596,7 +1593,7 @@ public sealed partial class FileStatusList : GitModuleControl
         // The actual implementation of the default handling with doubleclick is in each form,
         // separate from this menu item
 
-        if (!cm.Items.Find(_NO_TRANSLATE_openSubmoduleMenuItem.Name!, true).Any())
+        if (cm.Items.Find(_NO_TRANSLATE_openSubmoduleMenuItem.Name!, true).Length == 0)
         {
             cm.Items.Insert(0, _NO_TRANSLATE_openSubmoduleMenuItem);
         }
@@ -1611,7 +1608,7 @@ public sealed partial class FileStatusList : GitModuleControl
                 : new Font(_NO_TRANSLATE_openSubmoduleMenuItem.Font, FontStyle.Regular);
         }
 
-        if (!_isFileTreeMode && !cm.Items.Find(_sortByContextMenu.Name!, true).Any())
+        if (!_isFileTreeMode && cm.Items.Find(_sortByContextMenu.Name!, true).Length == 0)
         {
             cm.Items.Add(_sortBySeparator);
             cm.Items.Add(_sortByContextMenu);
@@ -1633,9 +1630,9 @@ public sealed partial class FileStatusList : GitModuleControl
         Validates.NotNull(TopLevelControl);
         _formFindInCommitFilesGitGrep ??= new FormFindInCommitFilesGitGrep(UICommands)
         {
-            FilesGitGrepLocator = (text, delay) =>
+            FilesGitGrepLocator = (text) =>
             {
-                FindInCommitFilesGitGrep(text, delay);
+                FindInCommitFilesGitGrep(text);
                 cboFindInCommitFilesGitGrep.Text = text;
             },
 
@@ -2041,11 +2038,14 @@ public sealed partial class FileStatusList : GitModuleControl
     }
 
     private void cboFindInCommitFilesGitGrep_TextUpdate(object? sender, EventArgs e)
+        => FindInCommitFilesGitGrep(cboFindInCommitFilesGitGrep.Text, delay: 200);
+
+    private void FindInCommitFilesGitGrep()
     {
         FindInCommitFilesGitGrep(cboFindInCommitFilesGitGrep.Text);
     }
 
-    private void FindInCommitFilesGitGrep(string search, int delay = 200)
+    private void FindInCommitFilesGitGrep(string search, int delay = 0)
     {
         SetDeleteSearchButtonVisibility();
 
@@ -2136,7 +2136,7 @@ public sealed partial class FileStatusList : GitModuleControl
 
     private void cboFindInCommitFilesGitGrep_SelectedIndexChanged(object? sender, EventArgs e)
     {
-        FindInCommitFilesGitGrep(cboFindInCommitFilesGitGrep.Text, delay: 0);
+        FindInCommitFilesGitGrep();
     }
 
     private void cboFindInCommitFilesGitGrep_SizeChanged(object? sender, EventArgs e)
@@ -2147,7 +2147,7 @@ public sealed partial class FileStatusList : GitModuleControl
     private void DeleteSearchButton_Click(object? sender, EventArgs e)
     {
         cboFindInCommitFilesGitGrep.Text = "";
-        FindInCommitFilesGitGrep(cboFindInCommitFilesGitGrep.Text, delay: 0);
+        FindInCommitFilesGitGrep();
     }
 
     private void StoreFilter(string value)

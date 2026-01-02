@@ -280,7 +280,7 @@ public static partial class AppSettings
         VersionIndependentRegKey.SetValue(key, value ? "true" : "false");
     }
 
-    [return: NotNullIfNotNull("defaultValue")]
+    [return: NotNullIfNotNull(nameof(defaultValue))]
     private static string? ReadStringRegValue(string key, string? defaultValue)
     {
         return (string?)VersionIndependentRegKey.GetValue(key, defaultValue);
@@ -839,7 +839,7 @@ public static partial class AppSettings
             }
             catch (CultureNotFoundException)
             {
-                Debug.WriteLine("Culture {0} not found", new object[] { CurrentLanguageCode });
+                Debug.WriteLine("Culture {0} not found", [CurrentLanguageCode]);
                 return CultureInfo.GetCultureInfo("en");
             }
         }
@@ -1326,7 +1326,7 @@ public static partial class AppSettings
     public static string[] RevisionFilterDropdowns
     {
         get => GetString("RevisionFilterDropdowns", string.Empty).Split('\n', StringSplitOptions.RemoveEmptyEntries);
-        set => SetString("RevisionFilterDropdowns", string.Join("\n", value ?? Array.Empty<string>()));
+        set => SetString("RevisionFilterDropdowns", string.Join("\n", value ?? []));
     }
 
     public static bool CommitDialogSelectionFilter
@@ -1467,30 +1467,16 @@ public static partial class AppSettings
 
     public static ThemeId ThemeId
     {
-        // Updating key names in v4.0, to force resetting to default
-        // (as dark themes look bad due to SUPPORT_THEME_HOOKS no longer supported)
         get
         {
             return new ThemeId(
-                GetString("uitheme_v2", ThemeId.Default.Name),
-                GetBool("uithemeisbuiltin_v2", ThemeId.Default.IsBuiltin));
+                GetString("uitheme_v2", ThemeId.DefaultLight.Name),
+                GetBool("uithemeisbuiltin_v2", ThemeId.DefaultLight.IsBuiltin));
         }
         set
         {
             SetString("uitheme_v2", value.Name ?? string.Empty);
             SetBool("uithemeisbuiltin_v2", value.IsBuiltin);
-        }
-    }
-
-    public static string? ThemeIdName_v1
-    {
-        get
-        {
-            return GetString("uitheme", null);
-        }
-        set
-        {
-            SetString("uitheme", value);
         }
     }
 
@@ -1502,7 +1488,7 @@ public static partial class AppSettings
         }
         set
         {
-            SetString("uithemevariations", string.Join(",", value ?? Array.Empty<string>()));
+            SetString("uithemevariations", string.Join(",", value ?? []));
         }
     }
 
@@ -2126,7 +2112,7 @@ public static partial class AppSettings
     #region Save in settings file
 
     // String
-    [return: NotNullIfNotNull("defaultValue")]
+    [return: NotNullIfNotNull(nameof(defaultValue))]
     public static string? GetString(string name, string? defaultValue) => SettingsContainer.GetString(name, defaultValue);
     public static void SetString(string name, string value) => SettingsContainer.SetString(name, value);
 
@@ -2276,19 +2262,19 @@ public static partial class AppSettings
 
     internal struct TestAccessor
     {
-        public string ApplicationExecutablePath
+        public readonly string ApplicationExecutablePath
         {
             get => _applicationExecutablePath;
             set => _applicationExecutablePath = value;
         }
 
-        public Lazy<string?> ApplicationDataPath
+        public readonly Lazy<string?> ApplicationDataPath
         {
             get => AppSettings.ApplicationDataPath;
             set => AppSettings.ApplicationDataPath = value;
         }
 
-        public void ResetDocumentationBaseUrl() => AppSettings._documentationBaseUrl = null;
+        public readonly void ResetDocumentationBaseUrl() => AppSettings._documentationBaseUrl = null;
     }
 }
 
