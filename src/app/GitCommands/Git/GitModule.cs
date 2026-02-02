@@ -2424,6 +2424,7 @@ public sealed partial class GitModule : IGitModule
         bool useGitColoring,
         bool showFunctionName,
         IGitCommandConfiguration commandConfiguration,
+        Encoding encoding,
         CancellationToken cancellationToken)
     {
         bool noCache = objectId.IsArtificial;
@@ -2446,6 +2447,7 @@ public sealed partial class GitModule : IGitModule
 
         return await _gitExecutable.ExecuteAsync(
             args,
+            outputEncoding: encoding,
             cache: noCache ? null : GitCommandCache,
             throwOnErrorExit: false,
             stripAnsiEscapeCodes: !useGitColoring,
@@ -3534,7 +3536,7 @@ public sealed partial class GitModule : IGitModule
             id.ToString().QuoteNE()
         };
 
-        ExecutionResult exec = _gitExecutable.Execute(args, throwOnErrorExit: false, cache: GitCommandCache);
+        ExecutionResult exec = _gitExecutable.Execute(args, outputEncoding: encoding, stripAnsiEscapeCodes: stripAnsiEscapeCodes, throwOnErrorExit: false, cache: GitCommandCache);
         if (!exec.ExitedSuccessfully)
         {
             // blob did not exist, this could be a submodule that is removed
