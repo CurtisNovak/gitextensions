@@ -737,11 +737,11 @@ public sealed partial class FormBrowse : GitModuleForm, IBrowseRepo
         FillFileTree(selectedRevision);
         FillDiff(selectedRevisions);
 
-        string oldBody = selectedRevision?.Body;
+        (string? body, string? notes) old = (selectedRevision?.Body, selectedRevision?.Notes);
         FillCommitInfo(selectedRevision);
 
         // If the revision's body has been updated then the grid needs to be refreshed to display it
-        if (AppSettings.ShowCommitBodyInRevisionGrid && selectedRevision?.HasMultiLineMessage is true && oldBody != selectedRevision.Body)
+        if (AppSettings.ShowCommitBodyInRevisionGrid && selectedRevision?.HasMultiLineMessage is true && old != (selectedRevision.Body, selectedRevision.Notes))
         {
             RevisionGrid.Refresh();
         }
@@ -1182,7 +1182,7 @@ public sealed partial class FormBrowse : GitModuleForm, IBrowseRepo
         }
     }
 
-    public override IScriptOptionsProvider? GetScriptOptionsProvider()
+    public override IScriptOptionsProvider GetScriptOptionsProvider()
     {
         if (fileTree.Visible)
         {
@@ -1688,7 +1688,6 @@ public sealed partial class FormBrowse : GitModuleForm, IBrowseRepo
 
         HideVariableMainMenuItems();
         PluginRegistry.Unregister(UICommands);
-        RevisionGrid.OnRepositoryChanged();
         _gitStatusMonitor.InvalidateGitWorkingDirectoryStatus();
         _submoduleStatusProvider.Init();
 
@@ -1698,6 +1697,7 @@ public sealed partial class FormBrowse : GitModuleForm, IBrowseRepo
         e.GitModule.ResetRemoteColors();
 
         UICommands = UICommands.WithGitModule(e.GitModule);
+        RevisionGrid.OnRepositoryChanged();
         if (Module.IsValidGitWorkingDir())
         {
             RevisionGrid.SuspendRefreshRevisions();
