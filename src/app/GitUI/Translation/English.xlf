@@ -3458,6 +3458,10 @@ Focus the output history and (when displayed as panel) toggle its visibility usi
         <source>Show output history as tab (otherwise as panel)</source>
         <target />
       </trans-unit>
+      <trans-unit id="chkShowRevisionGridTooltip.Text">
+        <source>Show revision tooltips (restart required)</source>
+        <target />
+      </trans-unit>
       <trans-unit id="chkUseBrowseForFileHistory.Text">
         <source>Show file history in the main window</source>
         <target />
@@ -9334,6 +9338,10 @@ Reset the filter via View &gt; Show all branches.</source>
       </trans-unit>
       <trans-unit id="showDateColumnToolStripMenuItem.Text">
         <source>Show &amp;date column</source>
+        <target />
+      </trans-unit>
+      <trans-unit id="showGitNotesColumnToolStripMenuItem.Text">
+        <source>Show Git &amp;notes column</source>
         <target />
       </trans-unit>
       <trans-unit id="showGitNotesToolStripMenuItem.Text">
