@@ -6,15 +6,16 @@ namespace GitCommands.Git;
 public static partial class DetachedHeadParser
 {
     public static readonly string DetachedBranch = "(no branch)";
+    public static readonly string UnknownBranchName = "???";
 
     private static readonly string[] DetachedPrefixes = ["(no branch", "(detached from ", "(HEAD detached at "];
 
     [GeneratedRegex(@"^\(.* (?<sha1>.*)\)$", RegexOptions.ExplicitCapture)]
     private static partial Regex ShaRegex { get; }
 
-    public static bool IsDetachedHead(string branch)
+    public static bool IsDetachedHead([NotNullWhen(returnValue: true)] string? branch)
     {
-        return DetachedPrefixes.Any(a => branch.StartsWith(a, StringComparison.Ordinal));
+        return branch is not null && DetachedPrefixes.Any(a => branch.StartsWith(a, StringComparison.Ordinal));
     }
 
     public static bool TryParse(string text, [NotNullWhen(returnValue: true)] out string? sha1)
