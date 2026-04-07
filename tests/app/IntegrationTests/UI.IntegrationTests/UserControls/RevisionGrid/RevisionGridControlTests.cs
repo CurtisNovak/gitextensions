@@ -1,6 +1,6 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
+using AwesomeAssertions;
 using CommonTestUtils;
-using FluentAssertions;
 using GitCommands;
 using GitExtensions.Extensibility.Git;
 using GitUI;

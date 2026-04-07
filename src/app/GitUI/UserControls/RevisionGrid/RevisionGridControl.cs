@@ -1,4 +1,4 @@
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Reactive.Concurrency;
@@ -24,6 +24,7 @@ using GitUI.Properties;
 using GitUI.UserControls;
 using GitUI.UserControls.RevisionGrid;
 using GitUI.UserControls.RevisionGrid.Columns;
+using GitUI.UserControls.RevisionGrid.RefContextMenus;
 using GitUIPluginInterfaces;
 using Microsoft;
 using Microsoft.VisualStudio.Threading;
@@ -132,12 +133,21 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
     private readonly BuildServerWatcher _buildServerWatcher;
     private readonly System.Windows.Forms.Timer _selectionTimer;
     private readonly RevisionGraphColumnProvider _revisionGraphColumnProvider;
+    private readonly MessageColumnProvider _messageColumnProvider;
     private readonly DataGridViewColumn? _maximizedColumn;
     private DataGridViewColumn? _lastVisibleResizableColumn;
     private readonly ArtificialCommitChangeCount _workTreeChangeCount = new();
     private readonly ArtificialCommitChangeCount _indexChangeCount = new();
     private readonly CancellationTokenSequence _customDiffToolsSequence = new();
     private readonly CancellationTokenSequence _refreshRevisionsSequence = new();
+    private readonly RefContextMenuComposer _refContextMenuComposer = new(
+    [
+        new LocalBranchContextMenuProvider(),
+        new RemoteBranchContextMenuProvider(),
+        new TagContextMenuProvider(),
+        new StashRefContextMenuProvider(),
+        new StashSelectorContextMenuProvider(),
+    ]);
 
     /// <summary>
     /// The set of ref names that are ambiguous.
@@ -153,6 +163,12 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
     private bool _isRefreshingRevisions;
     private SuperProjectInfo? _superprojectCurrentCheckout;
     private int _latestSelectedRowIndex;
+
+    // Tracks the ref label that was right-clicked so the context menu can offer ref-specific actions.
+    private RefLabelHitInfo? _rightClickedHitInfo;
+
+    // The currently shown ref-specific context menu, kept to dispose before showing a new one.
+    private ContextMenuStrip? _refContextMenu;
 
     /// <summary>
     /// A prefix to use in git log output for parsing file names for individual revisions
@@ -271,8 +287,9 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
         _gridView.CellMouseDown += OnGridViewCellMouseDown;
         _gridView.MouseDoubleClick += OnGridViewDoubleClick;
         _gridView.MouseClick += OnGridViewMouseClick;
-        _gridView.CellMouseMove += (_, e) => _toolTipProvider.OnCellMouseMove(e);
+        _gridView.CellMouseMove += OnGridViewCellMouseMove;
         _gridView.CellMouseEnter += _gridView_CellMouseEnter;
+        _gridView.CellMouseLeave += OnGridViewCellMouseLeave;
 
         // Allow to drop patch file on revision grid
         _gridView.AllowDrop = true;
@@ -284,7 +301,8 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
         GitRevisionSummaryBuilder gitRevisionSummaryBuilder = new();
         _revisionGraphColumnProvider = new RevisionGraphColumnProvider(_gridView._revisionGraph, gitRevisionSummaryBuilder);
         _gridView.AddColumn(_revisionGraphColumnProvider);
-        _gridView.AddColumn(new MessageColumnProvider(this, gitRevisionSummaryBuilder, commitDataManager));
+        _messageColumnProvider = new MessageColumnProvider(this, gitRevisionSummaryBuilder, commitDataManager);
+        _gridView.AddColumn(_messageColumnProvider);
         _gridView.AddColumn(new NotesColumnProvider(this, commitDataManager));
         _gridView.AddColumn(new AvatarColumnProvider(_gridView, AvatarService.DefaultProvider, AvatarService.CacheCleaner));
         _gridView.AddColumn(new AuthorNameColumnProvider(this, _authorHighlighting));
@@ -1841,6 +1859,46 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
         }
     }
 
+    private void OnGridViewCellMouseMove(object? sender, DataGridViewCellMouseEventArgs e)
+    {
+        _toolTipProvider.OnCellMouseMove(e);
+
+        if (e.RowIndex < 0 || e.ColumnIndex != _messageColumnProvider.Index)
+        {
+            ClearRefHighlight();
+            return;
+        }
+
+        Rectangle cellBounds = _gridView.GetCellDisplayRectangle(e.ColumnIndex, e.RowIndex, cutOverflow: false);
+        Point clientPoint = new(cellBounds.X + e.X, cellBounds.Y + e.Y);
+        RefLabelHitInfo? hitInfo = _messageColumnProvider.HitTest(e.RowIndex, clientPoint);
+
+        if (_messageColumnProvider.SetHighlight(e.RowIndex, hitInfo))
+        {
+            _gridView.InvalidateRow(e.RowIndex);
+        }
+
+        _gridView.Cursor = hitInfo is not null ? Cursors.Hand : Cursors.Default;
+    }
+
+    private void OnGridViewCellMouseLeave(object? sender, DataGridViewCellEventArgs e)
+    {
+        ClearRefHighlight();
+    }
+
+    private void ClearRefHighlight()
+    {
+        if (_messageColumnProvider.SetHighlight(-1, hitInfo: null))
+        {
+            _gridView.Invalidate();
+        }
+
+        if (_gridView.Cursor == Cursors.Hand)
+        {
+            _gridView.Cursor = Cursors.Default;
+        }
+    }
+
     private void OnGridViewCellMouseDown(object? sender, DataGridViewCellMouseEventArgs e)
     {
         try
@@ -1854,6 +1912,15 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
             if (e.Button != MouseButtons.Right)
             {
                 return;
+            }
+
+            // Check if a ref label was right-clicked in the message column
+            _rightClickedHitInfo = null;
+            if (e.RowIndex >= 0 && e.ColumnIndex == _messageColumnProvider.Index)
+            {
+                Rectangle cellBounds = _gridView.GetCellDisplayRectangle(e.ColumnIndex, e.RowIndex, cutOverflow: false);
+                Point clientPoint = new(cellBounds.X + e.X, cellBounds.Y + e.Y);
+                _rightClickedHitInfo = _messageColumnProvider.HitTest(e.RowIndex, clientPoint);
             }
 
             if (_latestSelectedRowIndex == e.RowIndex
@@ -2017,6 +2084,15 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
     {
         if (LatestSelectedRevision is null)
         {
+            return;
+        }
+
+        // If a ref label was right-clicked, show a focused context menu for that ref
+        if (_rightClickedHitInfo is { } hitInfo)
+        {
+            e.Cancel = true;
+            ShowRefSpecificContextMenu(hitInfo.GitRef, hitInfo.StashReflogSelector);
+            _rightClickedHitInfo = null;
             return;
         }
 
@@ -2261,6 +2337,36 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
         return _ambiguousRefs!.Value.Contains(gitRef.Name)
             ? gitRef.CompleteName
             : gitRef.Name;
+    }
+
+    private void ShowRefSpecificContextMenu(IGitRef? gitRef, string? stashReflogSelector)
+    {
+        RefContextMenuContext context = new()
+        {
+            UICommands = UICommands,
+            ParentForm = ParentForm,
+            CurrentBranchRef = GitRefName.RefsHeadsPrefix + CurrentBranch.Value,
+            CurrentCheckout = CurrentCheckout,
+            IsBareRepository = Module.IsBareRepository(),
+            GetRefUnambiguousName = GetRefUnambiguousName,
+            GetLatestSelectedRevision = () => LatestSelectedRevision,
+            PerformRefreshRevisions = () => PerformRefreshRevisions(),
+            DropStash = DropStashToolStripMenuItemClick,
+        };
+
+        ContextMenuStrip? menu = _refContextMenuComposer.Build(gitRef, stashReflogSelector, context);
+        if (menu is null)
+        {
+            return;
+        }
+
+        // Dispose the previous menu before showing a new one. This avoids an
+        // ObjectDisposedException when rapidly right-clicking different ref labels,
+        // where WinForms tries to close the previous menu after it's already disposed.
+        _refContextMenu?.Dispose();
+        _refContextMenu = menu;
+        Point cursorPosition = _gridView.PointToClient(Cursor.Position);
+        menu.Show(_gridView, cursorPosition);
     }
 
     private void RebaseOnToolStripMenuItem_DropDownOpening(object sender, EventArgs e)

@@ -1,5 +1,5 @@
+﻿using AwesomeAssertions;
 using CommonTestUtils;
-using FluentAssertions;
 using GitUI;
 using GitUI.CommandsDialogs.BrowseDialog;
 
