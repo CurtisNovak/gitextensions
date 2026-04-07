@@ -1,4 +1,4 @@
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using GitCommands;
 using GitUI.ScriptsEngine;
 

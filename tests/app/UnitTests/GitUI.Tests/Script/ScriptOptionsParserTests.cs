@@ -1,5 +1,5 @@
-using System.ComponentModel.Design;
-using FluentAssertions;
+﻿using System.ComponentModel.Design;
+using AwesomeAssertions;
 using GitCommands;
 using GitCommands.Config;
 using GitCommands.Git;

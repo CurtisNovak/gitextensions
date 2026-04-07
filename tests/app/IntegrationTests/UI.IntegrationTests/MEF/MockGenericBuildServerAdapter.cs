@@ -1,4 +1,4 @@
-using System.ComponentModel.Composition;
+﻿using System.ComponentModel.Composition;
 using System.Reactive.Concurrency;
 using GitExtensions.Extensibility.BuildServerIntegration;
 using GitExtensions.Extensibility.Git;

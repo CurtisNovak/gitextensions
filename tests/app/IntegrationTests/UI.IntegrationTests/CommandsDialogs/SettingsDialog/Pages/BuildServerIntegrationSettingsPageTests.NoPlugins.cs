@@ -1,4 +1,4 @@
-using CommonTestUtils;
+﻿using CommonTestUtils;
 using CommonTestUtils.MEF;
 using GitCommands;
 using GitExtensions.Extensibility.Settings;
