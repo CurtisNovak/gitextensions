@@ -1,0 +1,119 @@
+name: PR Build
+
+on:
+  push:
+    branches-ignore:
+      - configdata
+      - gh-pages
+      - 'translations_*'
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  checks: write
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  BUILD_VERSION: 7.0.0.${{ github.run_number }}
+
+jobs:
+  build-and-test:
+    name: Build & Test
+    runs-on: windows-latest
+    timeout-minutes: 30
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      with:
+        submodules: recursive
+        fetch-depth: 0
+
+    - name: Setup .NET SDK
+      uses: actions/setup-dotnet@c2fa09f4bde5ebb9d1777cf28262a3eb3db3ced7 # v5.2.0
+      with:
+        dotnet-version: '10.0.x'
+
+    - name: Cache NuGet packages
+      uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+      with:
+        path: ~/.nuget/packages
+        key: nuget-${{ runner.os }}-${{ hashFiles('Directory.Packages.props') }}
+        restore-keys: |
+          nuget-${{ runner.os }}-
+
+    - name: Show tool versions
+      run: |
+        dotnet --version
+        git --version
+
+    - name: Set version
+      working-directory: eng
+      run: dotnet run set_version_to.cs -- -v ${{ env.BUILD_VERSION }} -t ${{ env.BUILD_VERSION }}
+
+    - name: Resolve PR build properties
+      if: github.event_name == 'pull_request'
+      shell: pwsh
+      run: |
+        $prHeadSha = "${{ github.event.pull_request.head.sha }}"
+        $gitCommit = git rev-parse --short $prHeadSha
+        "BUILD_ARGS=/p:GitCommit=$gitCommit /p:GitSha=$prHeadSha" >> $env:GITHUB_ENV
+
+    - name: Build native code
+      run: dotnet build src\native\build.proj -c Release --verbosity q --nologo /bl:artifacts\log\native.binlog
+
+    - name: Build .NET
+      shell: pwsh
+      run: |
+        $buildArgs = "/p:ContinuousIntegrationBuild=true $env:BUILD_ARGS".Trim()
+        dotnet build -c Release --verbosity q --nologo /bl:artifacts\log\build.binlog $buildArgs.Split(' ', [StringSplitOptions]::RemoveEmptyEntries)
+
+    - name: Verify localisation
+      shell: pwsh
+      run: |
+        git reset --hard HEAD
+        Push-Location src\app\GitExtensions
+        dotnet msbuild /p:Configuration=Release /t:_UpdateEnglishTranslations /p:RunTranslationApp=true /p:ContinuousIntegrationBuild=true /v:m /bl:${{ github.workspace }}\artifacts\log\localise.binlog
+        $exitCode = $LASTEXITCODE
+        Pop-Location
+        if ($exitCode -ne 0) { exit $exitCode }
+
+    - name: Run tests
+      run: dotnet test -c Release --no-restore --no-build --nologo --verbosity q --test-adapter-path:. --logger:trx /bl:artifacts\log\tests.binlog
+
+    - name: Test report
+      # v1 @ 2024-08-30
+      uses: dorny/test-reporter@d61b558e8df85cb60d09ca3e5b09653b4477cea7
+      if: always() && github.event.pull_request.head.repo.full_name == github.repository
+      continue-on-error: true
+      with:
+        name: Test Results
+        path: 'artifacts/**/TestsResults/**/*.trx'
+        reporter: dotnet-trx
+
+    - name: Upload test results
+      if: always()
+      uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+      with:
+        name: test-results
+        path: 'artifacts\Release\TestsResults\**\*.trx'
+        if-no-files-found: ignore
+
+    - name: Upload build logs on failure
+      if: failure()
+      uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+      with:
+        name: build-logs
+        path: |
+          artifacts\**\log\**\*.binlog
+          artifacts\Release\TestsResults\**\*.trx
+          **\English*.xlf
+          artifacts\Release\**\*.dgml
+        if-no-files-found: ignore
