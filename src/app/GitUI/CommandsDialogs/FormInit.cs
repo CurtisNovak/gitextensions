@@ -1,4 +1,4 @@
-using GitCommands;
+﻿using GitCommands;
 using GitCommands.UserRepositoryHistory;
 using GitExtensions.Extensibility.Git;
 using GitExtUtils;
@@ -22,8 +22,8 @@ public partial class FormInit : GitExtensionsDialog
 
     private readonly EventHandler<GitModuleEventArgs>? _gitModuleChanged;
 
-    public FormInit(string dir, EventHandler<GitModuleEventArgs>? gitModuleChanged)
-        : base(commands: null, enablePositionRestore: true)
+    public FormInit(IGitUICommands commands, string dir, EventHandler<GitModuleEventArgs>? gitModuleChanged)
+        : base(commands, enablePositionRestore: true)
     {
         ThreadHelper.ThrowIfNotOnUIThread();
 

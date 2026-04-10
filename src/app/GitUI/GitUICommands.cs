@@ -710,7 +710,7 @@ public sealed class GitUICommands : IGitUICommands
         {
             dir ??= Module.IsValidGitWorkingDir() ? Module.WorkingDir : string.Empty;
 
-            using FormInit frm = new(dir, gitModuleChanged);
+            using FormInit frm = new(this, dir, gitModuleChanged);
             frm.ShowDialog(owner);
             return true;
         }
@@ -1891,6 +1891,7 @@ public sealed class GitUICommands : IGitUICommands
                                  RevFilter = filterByRevision ? revision?.ObjectId.ToString() : null,
                                  PathFilter = fileHistoryFileName,
                                  SelectedId = revision?.ObjectId,
+                                 FirstId = revision?.ObjectId,
                                  IsFileHistoryMode = true
                              }));
         }
