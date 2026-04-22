@@ -1,4 +1,4 @@
-﻿using System.Globalization;
+using System.Globalization;
 using System.Text.RegularExpressions;
 using ConEmu.WinForms;
 using GitCommands;
@@ -6,19 +6,19 @@ using GitCommands.Logging;
 using GitExtensions.Extensibility;
 using Microsoft;
 
-namespace GitUI.UserControls;
+namespace GitUI.ConsoleEmulation.ConEmu;
 
 /// <summary>
-/// An output control which inserts a fully-functional console emulator window.
+///  Embeds a ConEmu terminal in the output panel so command dialogs can host an interactive console.
 /// </summary>
-public class ConsoleEmulatorOutputControl : ConsoleOutputControl
+internal class ConEmuConsoleCommandRunner : ContainerControl, IConsoleCommandRunner
 {
     private int _nLastExitCode;
 
     private Panel _panel;
     private ConEmuControl? _terminal;
 
-    public ConsoleEmulatorOutputControl()
+    public ConEmuConsoleCommandRunner()
     {
         InitializeComponent();
 
@@ -30,25 +30,27 @@ public class ConsoleEmulatorOutputControl : ConsoleOutputControl
         Controls.Add(_panel = new Panel { Dock = DockStyle.Fill, BorderStyle = BorderStyle.None });
     }
 
-    public override int ExitCode => _nLastExitCode;
+    public Control Control => this;
 
-    public override bool IsDisplayingFullProcessOutput => true;
+    public bool IsDisplayingFullProcessOutput => true;
 
-    public static bool IsSupportedInThisEnvironment => OperatingSystem.IsWindows();
+    public event EventHandler<ConsoleOutputEventArgs>? CommandOutputReceived;
+    public event EventHandler<ConsoleProcessExitEventArgs>? CommandProcessExited;
+    public event EventHandler? ConsoleHostTerminated;
 
-    public override void AppendMessageFreeThreaded(string text)
+    public void WriteConsoleOutput(string text)
     {
         Validates.NotNull(_terminal);
         _terminal.RunningSession?.WriteOutputTextAsync(text);
     }
 
-    public override void AppendInput(string text)
+    public void WriteCommandProcessInput(string text)
     {
         Validates.NotNull(_terminal);
         this.InvokeAndForget(() => _terminal.RunningSession?.WriteInputTextAsync(text)!);
     }
 
-    public override void KillProcess()
+    public void KillCommandProcess()
     {
         Validates.NotNull(_terminal);
         KillProcess(_terminal);
@@ -59,7 +61,7 @@ public class ConsoleEmulatorOutputControl : ConsoleOutputControl
         terminal.RunningSession?.SendControlCAsync();
     }
 
-    public override void Reset()
+    public void ResetConsole()
     {
         ConEmuControl? oldTerminal = _terminal;
 
@@ -89,14 +91,14 @@ public class ConsoleEmulatorOutputControl : ConsoleOutputControl
         base.Dispose(disposing);
     }
 
-    public override void StartProcess(string command, string arguments, string workDir, Dictionary<string, string> envVariables)
+    public void StartCommand(string command, string arguments, string workDir, Dictionary<string, string> envVariables)
     {
         ProcessOperation operation = CommandLog.LogProcessStart(command, arguments, workDir);
 
         try
         {
             string commandLine = new ArgumentBuilder { command.Quote(), arguments }.ToString();
-            ConsoleCommandLineOutputProcessor outputProcessor = new(commandLine.Length, FireDataReceived);
+            ConsoleCommandLineOutputProcessor outputProcessor = new(commandLine.Length, args => CommandOutputReceived?.Invoke(this, args));
 
             ConEmuStartInfo startInfo = new()
             {
@@ -117,7 +119,7 @@ public class ConsoleEmulatorOutputControl : ConsoleOutputControl
                 _nLastExitCode = args.ExitCode;
                 operation.LogProcessEnd(_nLastExitCode);
                 outputProcessor.Flush();
-                FireProcessExited();
+                CommandProcessExited?.Invoke(this, new ConsoleProcessExitEventArgs(args.ExitCode));
             };
 
             startInfo.ConsoleEmulatorClosedEventSink = (sender, _) =>
@@ -125,7 +127,7 @@ public class ConsoleEmulatorOutputControl : ConsoleOutputControl
                 Validates.NotNull(_terminal);
                 if (sender == _terminal.RunningSession)
                 {
-                    FireTerminated();
+                    ConsoleHostTerminated?.Invoke(this, EventArgs.Empty);
                 }
             };
 
@@ -142,14 +144,14 @@ public class ConsoleEmulatorOutputControl : ConsoleOutputControl
 
 public partial class ConsoleCommandLineOutputProcessor
 {
-    private readonly Action<TextEventArgs> _fireDataReceived;
+    private readonly Action<ConsoleOutputEventArgs> _fireDataReceived;
     private int _commandLineCharsInOutput;
     private string? _lineChunk;
 
     [GeneratedRegex(@"(?<=[\n\r])", RegexOptions.ExplicitCapture)]
     private static partial Regex NewLineRegex { get; }
 
-    public ConsoleCommandLineOutputProcessor(int commandLineCharsInOutput, Action<TextEventArgs> fireDataReceived)
+    public ConsoleCommandLineOutputProcessor(int commandLineCharsInOutput, Action<ConsoleOutputEventArgs> fireDataReceived)
     {
         _fireDataReceived = fireDataReceived;
         _commandLineCharsInOutput = commandLineCharsInOutput;
@@ -215,7 +217,7 @@ public partial class ConsoleCommandLineOutputProcessor
                 }
             }
 
-            _fireDataReceived(new TextEventArgs(outputLine));
+            _fireDataReceived(new ConsoleOutputEventArgs(outputLine));
         }
     }
 
@@ -223,7 +225,7 @@ public partial class ConsoleCommandLineOutputProcessor
     {
         if (_lineChunk is not null)
         {
-            _fireDataReceived(new TextEventArgs(_lineChunk));
+            _fireDataReceived(new ConsoleOutputEventArgs(_lineChunk));
             _lineChunk = null;
         }
     }

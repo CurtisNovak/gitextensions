@@ -123,6 +123,8 @@ public partial class FileViewer : GitModuleControl
         diffAppearanceToolStripMenuItem.Visible = false;
         SetStateOfContextLinesButtons();
 
+        _ = AppSettings.DiffDisplayAppearance.GetValue(reload: !AppSettings.RememberDiffDisplayAppearance.Value);
+
         automaticContinuousScrollToolStripMenuItem.AdaptImageLightness();
         automaticContinuousScrollToolStripMenuItem.Checked = AppSettings.AutomaticContinuousScroll;
 

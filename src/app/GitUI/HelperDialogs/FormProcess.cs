@@ -2,7 +2,7 @@ using GitCommands;
 using GitExtensions.Extensibility;
 using GitExtensions.Extensibility.Git;
 using GitExtUtils;
-using GitUI.UserControls;
+using GitUI.ConsoleEmulation;
 
 namespace GitUI.HelperDialogs;
 
@@ -19,8 +19,8 @@ public partial class FormProcess : FormStatus
     public HandleOnExit? HandleOnExitCallback { get; set; }
     public readonly Dictionary<string, string> ProcessEnvVariables = [];
 
-    private FormProcess(IGitUICommands commands, ConsoleOutputControl? outputControl, ArgumentString arguments, string workingDirectory, string? input, bool useDialogSettings, string? process)
-        : base(commands, outputControl, useDialogSettings)
+    private FormProcess(IGitUICommands commands, IConsoleEmulatorsRegistry consoleEmulatorsRegistry, ArgumentString arguments, string workingDirectory, string? input, bool useDialogSettings, string? process)
+        : base(commands, consoleEmulatorsRegistry, useDialogSettings)
     {
         ProcessCallback = ProcessStart;
         AbortCallback = ProcessAbort;
@@ -50,12 +50,12 @@ public partial class FormProcess : FormStatus
             Text += $" ({displayPath})";
         }
 
-        ConsoleOutput.ProcessExited += delegate { OnExit(ConsoleOutput.ExitCode); };
-        ConsoleOutput.DataReceived += DataReceivedCore;
+        ConsoleCommandRunner.CommandProcessExited += (_, args) => OnExit(args.ExitCode);
+        ConsoleCommandRunner.CommandOutputReceived += DataReceivedCore;
     }
 
     public FormProcess(IGitUICommands commands, ArgumentString arguments, string workingDirectory, string? input, bool useDialogSettings, string? process = null)
-        : this(commands, outputControl: null, arguments, workingDirectory, input, useDialogSettings, process)
+        : this(commands, consoleEmulatorsRegistry: commands.GetRequiredService<IConsoleEmulatorsRegistry>(), arguments, workingDirectory, input, useDialogSettings, process)
     {
     }
 
@@ -114,7 +114,7 @@ public partial class FormProcess : FormStatus
 
         try
         {
-            ConsoleOutput.StartProcess(ProcessString!, ProcessArguments!, WorkingDirectory, ProcessEnvVariables);
+            ConsoleCommandRunner.StartCommand(ProcessString!, ProcessArguments!, WorkingDirectory, ProcessEnvVariables);
 
             if (!string.IsNullOrEmpty(ProcessInput))
             {
@@ -142,7 +142,7 @@ public partial class FormProcess : FormStatus
     {
         try
         {
-            ConsoleOutput.KillProcess();
+            ConsoleCommandRunner.KillCommandProcess();
 
             GitModule module = new(UICommands.GetRequiredService<IGitExecutorProvider>(), WorkingDirectory);
             module.UnlockIndex(includeSubmodules: true);
@@ -183,11 +183,11 @@ public partial class FormProcess : FormStatus
         });
     }
 
-    protected virtual void DataReceived(object sender, TextEventArgs e)
+    protected virtual void DataReceived(object sender, ConsoleOutputEventArgs e)
     {
     }
 
-    private void DataReceivedCore(object? sender, TextEventArgs e)
+    private void DataReceivedCore(object? sender, ConsoleOutputEventArgs e)
     {
         // CarriageReturn has its literal meaning here, i.e. it is not a line end, but terminates transient progress information
         if (e.Text.EndsWith(Delimiters.CarriageReturn))
@@ -199,7 +199,7 @@ public partial class FormProcess : FormStatus
             const string ansiSuffix = "\u001B[K";
             string line = e.Text.Replace(ansiSuffix, "");
 
-            if (ConsoleOutput.IsDisplayingFullProcessOutput)
+            if (ConsoleCommandRunner.IsDisplayingFullProcessOutput)
             {
                 OutputLog.Append(line); // To the log only, display control displays it by itself
             }

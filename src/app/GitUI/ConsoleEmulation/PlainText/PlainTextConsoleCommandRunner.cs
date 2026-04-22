@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.Text;
 using GitCommands;
 using GitCommands.Git.Extensions;
@@ -10,16 +10,14 @@ using GitUI.Theming;
 using Microsoft;
 using Timer = System.Windows.Forms.Timer;
 
-namespace GitUI.UserControls;
+namespace GitUI.ConsoleEmulation.PlainText;
 
 /// <summary>
-/// Uses an edit box and process output streams redirection.
+///  Displays redirected process output in an edit box when no embedded terminal is being used.
 /// </summary>
-public sealed class EditboxBasedConsoleOutputControl : ConsoleOutputControl
+public sealed class PlainTextConsoleCommandRunner : ContainerControl, IConsoleCommandRunner
 {
     private readonly RichTextBox _editbox;
-
-    private int _exitcode;
 
     private Process? _process;
 
@@ -29,7 +27,7 @@ public sealed class EditboxBasedConsoleOutputControl : ConsoleOutputControl
 
     private StreamWriter? _input;
 
-    public EditboxBasedConsoleOutputControl()
+    public PlainTextConsoleCommandRunner()
     {
         _editbox = new RichTextBox
         {
@@ -61,22 +59,30 @@ public sealed class EditboxBasedConsoleOutputControl : ConsoleOutputControl
         }
     }
 
-    public override int ExitCode => _exitcode;
+    public Control Control => this;
 
-    public override bool IsDisplayingFullProcessOutput => false;
+    public bool IsDisplayingFullProcessOutput => false;
 
-    public override void AppendMessageFreeThreaded(string text)
+    public event EventHandler<ConsoleOutputEventArgs>? CommandOutputReceived;
+    public event EventHandler<ConsoleProcessExitEventArgs>? CommandProcessExited;
+
+    // Editbox-based output never terminates independently; event is required by the interface.
+#pragma warning disable CS0067
+    public event EventHandler? ConsoleHostTerminated;
+#pragma warning restore CS0067
+
+    public void WriteConsoleOutput(string text)
     {
         _outputThrottle?.Append(text);
     }
 
-    public override void AppendInput(string text)
+    public void WriteCommandProcessInput(string text)
     {
         Validates.NotNull(_input);
         _input.Write(text);
     }
 
-    public override void KillProcess()
+    public void KillCommandProcess()
     {
         if (InvokeRequired)
         {
@@ -103,17 +109,18 @@ public sealed class EditboxBasedConsoleOutputControl : ConsoleOutputControl
         _process = null;
         _input?.Dispose();
         _input = null;
-        FireProcessExited();
+        CommandProcessExited?.Invoke(this, new ConsoleProcessExitEventArgs(-1));
     }
 
-    public override void Reset()
+    public void ResetConsole()
     {
+        KillCommandProcess();
         _outputThrottle?.Clear();
         _editbox.Text = "";
         _editbox.Visible = false;
     }
 
-    public override void StartProcess(string command, string arguments, string workDir, Dictionary<string, string> envVariables)
+    public void StartCommand(string command, string arguments, string workDir, Dictionary<string, string> envVariables)
     {
         ProcessOperation operation = CommandLog.LogProcessStart(command, arguments, workDir);
 
@@ -121,7 +128,7 @@ public sealed class EditboxBasedConsoleOutputControl : ConsoleOutputControl
         {
             EnvironmentConfiguration.SetEnvironmentVariables();
 
-            KillProcess();
+            KillCommandProcess();
 
             _logProcessKilled = () => operation.LogProcessEnd(new Exception("Process killed"));
 
@@ -189,7 +196,7 @@ public sealed class EditboxBasedConsoleOutputControl : ConsoleOutputControl
                             operation.LogProcessEnd(ex);
                         }
 
-                        _exitcode = _process.ExitCode;
+                        int exitCode = _process.ExitCode;
 
                         using CancellationTokenSource eofTimeoutTokenSource = new(millisecondsDelay: 5000);
 
@@ -206,13 +213,13 @@ public sealed class EditboxBasedConsoleOutputControl : ConsoleOutputControl
                         }
 
                         await this.SwitchToMainThreadAsync();
-                        operation.LogProcessEnd(_exitcode);
+                        operation.LogProcessEnd(exitCode);
                         _process.Dispose();
                         _process = null;
                         await _input!.DisposeAsync();
                         _input = null;
                         _outputThrottle?.Stop(flush: true);
-                        FireProcessExited();
+                        CommandProcessExited?.Invoke(this, new ConsoleProcessExitEventArgs(exitCode));
                     });
             };
 
@@ -244,7 +251,7 @@ public sealed class EditboxBasedConsoleOutputControl : ConsoleOutputControl
                     nextLineEnd = output.Length;
                 }
 
-                FireDataReceived(new TextEventArgs(output[startIndex..nextLineEnd]));
+                CommandOutputReceived?.Invoke(this, new ConsoleOutputEventArgs(output[startIndex..nextLineEnd]));
                 startIndex = nextLineEnd;
             }
         }
@@ -252,7 +259,7 @@ public sealed class EditboxBasedConsoleOutputControl : ConsoleOutputControl
 
     protected override void Dispose(bool disposing)
     {
-        KillProcess();
+        KillCommandProcess();
         if (disposing)
         {
             _outputThrottle?.Dispose();

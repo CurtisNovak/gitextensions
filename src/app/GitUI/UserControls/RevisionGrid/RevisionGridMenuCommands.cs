@@ -1,4 +1,4 @@
-using System.Reflection;
+﻿using System.Reflection;
 using GitCommands;
 using GitCommands.Settings;
 using GitExtensions.Extensibility.Git;
@@ -489,7 +489,7 @@ internal class RevisionGridMenuCommands : MenuCommandsBase
             {
                 Name = "SaveAsDefault",
                 Text = "Save current view settings as default",
-                ExecuteAction = SaveAsDefaultViewSettings
+                ExecuteAction = SaveCurrentViewSettingsAsDefault
             }
         };
     }
@@ -538,9 +538,12 @@ internal class RevisionGridMenuCommands : MenuCommandsBase
         }
     }
 
-    private void SaveAsDefaultViewSettings()
+    /// <summary>
+    ///  Saves all <see cref="IRuntimeSetting"/> values as the default for future sessions.
+    /// </summary>
+    public static void SaveCurrentViewSettingsAsDefault()
     {
-        foreach (FieldInfo staticAppSettingField in typeof(AppSettings).GetFields(BindingFlags.Public | BindingFlags.NonPublic | System.Reflection.BindingFlags.Static))
+        foreach (FieldInfo staticAppSettingField in typeof(AppSettings).GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static))
         {
             IRuntimeSetting? runtimeSetting = staticAppSettingField.GetValue(null) as IRuntimeSetting;
             runtimeSetting?.Save();
