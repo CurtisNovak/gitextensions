@@ -15,7 +15,7 @@ namespace GitUI.ConsoleEmulation.PlainText;
 /// <summary>
 ///  Displays redirected process output in an edit box when no embedded terminal is being used.
 /// </summary>
-public sealed class PlainTextConsoleCommandRunner : ContainerControl, IConsoleCommandRunner
+public sealed class PlainTextConsoleCommandRunner : ContainerControl, IPlainTextConsoleCommandRunner
 {
     private readonly RichTextBox _editbox;
 
@@ -61,9 +61,8 @@ public sealed class PlainTextConsoleCommandRunner : ContainerControl, IConsoleCo
 
     public Control Control => this;
 
-    public bool IsDisplayingFullProcessOutput => false;
-
     public event EventHandler<ConsoleOutputEventArgs>? CommandOutputReceived;
+
     public event EventHandler<ConsoleProcessExitEventArgs>? CommandProcessExited;
 
     // Editbox-based output never terminates independently; event is required by the interface.
@@ -71,7 +70,7 @@ public sealed class PlainTextConsoleCommandRunner : ContainerControl, IConsoleCo
     public event EventHandler? ConsoleHostTerminated;
 #pragma warning restore CS0067
 
-    public void WriteConsoleOutput(string text)
+    public void WriteOutputText(string text)
     {
         _outputThrottle?.Append(text);
     }
@@ -123,6 +122,8 @@ public sealed class PlainTextConsoleCommandRunner : ContainerControl, IConsoleCo
     public void StartCommand(string command, string arguments, string workDir, Dictionary<string, string> envVariables)
     {
         ProcessOperation operation = CommandLog.LogProcessStart(command, arguments, workDir);
+
+        WriteOutputText($"{command.Quote()} {arguments}{Environment.NewLine}");
 
         try
         {
@@ -214,6 +215,7 @@ public sealed class PlainTextConsoleCommandRunner : ContainerControl, IConsoleCo
 
                         await this.SwitchToMainThreadAsync();
                         operation.LogProcessEnd(exitCode);
+                        WriteOutputText("Done");
                         _process.Dispose();
                         _process = null;
                         await _input!.DisposeAsync();
@@ -251,7 +253,9 @@ public sealed class PlainTextConsoleCommandRunner : ContainerControl, IConsoleCo
                     nextLineEnd = output.Length;
                 }
 
-                CommandOutputReceived?.Invoke(this, new ConsoleOutputEventArgs(output[startIndex..nextLineEnd]));
+                string outputLine = output[startIndex..nextLineEnd];
+                CommandOutputReceived?.Invoke(this, new ConsoleOutputEventArgs(outputLine));
+
                 startIndex = nextLineEnd;
             }
         }

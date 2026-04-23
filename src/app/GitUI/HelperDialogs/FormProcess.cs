@@ -3,6 +3,7 @@ using GitExtensions.Extensibility;
 using GitExtensions.Extensibility.Git;
 using GitExtUtils;
 using GitUI.ConsoleEmulation;
+using GitUI.ConsoleEmulation.PlainText;
 
 namespace GitUI.HelperDialogs;
 
@@ -104,13 +105,6 @@ public partial class FormProcess : FormStatus
     private void ProcessStart(FormStatus form)
     {
         BeforeProcessStart();
-        string quotedProcessString = ProcessString!;
-        if (quotedProcessString.Contains(' '))
-        {
-            quotedProcessString = quotedProcessString.Quote();
-        }
-
-        AppendMessage($"{quotedProcessString} {ProcessArguments}{Environment.NewLine}");
 
         try
         {
@@ -128,7 +122,7 @@ public partial class FormProcess : FormStatus
         }
         catch (Exception e)
         {
-            AppendMessage($"{Environment.NewLine}{e.ToStringWithData()}{Environment.NewLine}");
+            MessageBoxes.ShowError(this, e.ToStringWithData(), "Failed to run command");
             OnExit(1);
         }
     }
@@ -199,29 +193,29 @@ public partial class FormProcess : FormStatus
             const string ansiSuffix = "\u001B[K";
             string line = e.Text.Replace(ansiSuffix, "");
 
-            if (ConsoleCommandRunner.IsDisplayingFullProcessOutput)
+            // To the internal log (which can be then retrieved as full text from this form)
+            OutputLog.Append(line);
+
+            if (ConsoleCommandRunner is IPlainTextConsoleCommandRunner plainTextRunner)
             {
-                OutputLog.Append(line); // To the log only, display control displays it by itself
-            }
-            else
-            {
-                AppendOutput(line); // Both to log and display control
+                // Plain text emulator is not emitting process output, so do it manually
+                plainTextRunner.WriteOutputText(line);
+
+                if (!line.EndsWith(Delimiters.LineFeed))
+                {
+                    this.InvokeAndForget(() =>
+                    {
+                        if (ShowPassword.CheckState == CheckState.Unchecked)
+                        {
+                            ShowPassword.CheckState = CheckState.Indeterminate;
+                            PasswordInput.Focus();
+                        }
+                    });
+                }
             }
         }
 
         DataReceived(sender!, e);
-    }
-
-    /// <summary>
-    /// Appends a line of text (CRLF added automatically) both to the logged output (<see cref="FormStatus.GetOutputString"/>) and to the display console control.
-    /// </summary>
-    public void AppendOutput(string line)
-    {
-        // To the internal log (which can be then retrieved as full text from this form)
-        OutputLog.Append(line);
-
-        // To the display control
-        AppendMessage(line);
     }
 
     public static bool IsOperationAborted(string dialogResult)

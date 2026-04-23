@@ -120,9 +120,10 @@ public partial class FormStatus : GitExtensionsDialog
         form.Text = text;
         if (output?.Length > 0)
         {
+            IPlainTextConsoleCommandRunner commandRunner = (IPlainTextConsoleCommandRunner)form.ConsoleCommandRunner;
             foreach (string line in output)
             {
-                form.AppendMessage(line);
+                commandRunner.WriteOutputText(line);
             }
         }
 
@@ -158,26 +159,6 @@ public partial class FormStatus : GitExtensionsDialog
         }
     }
 
-    /// <summary>
-    /// Adds a message to the console display control ONLY, <see cref="GetOutputString" /> will not list it.
-    /// </summary>
-    private protected void AppendMessage(string text)
-    {
-        ConsoleCommandRunner.WriteConsoleOutput(text);
-
-        if (!text.EndsWith(Delimiters.LineFeed))
-        {
-            this.InvokeAndForget(() =>
-            {
-                if (ShowPassword.CheckState == CheckState.Unchecked)
-                {
-                    ShowPassword.CheckState = CheckState.Indeterminate;
-                    PasswordInput.Focus();
-                }
-            });
-        }
-    }
-
     private protected void Done(bool isSuccess)
     {
         try
@@ -194,7 +175,6 @@ public partial class FormStatus : GitExtensionsDialog
                 Trace.WriteLine(exception);
             }
 
-            AppendMessage("Done");
             ShowPassword.Visible = false;
             PasswordInput.Visible = false;
             ProgressBar.Visible = false;
@@ -252,7 +232,7 @@ public partial class FormStatus : GitExtensionsDialog
         }
 
         // Show last progress message in the title, unless it's showing in the control body already
-        if (!ConsoleCommandRunner.IsDisplayingFullProcessOutput)
+        if (ConsoleCommandRunner is IPlainTextConsoleCommandRunner)
         {
             Text = text;
         }
