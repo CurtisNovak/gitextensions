@@ -894,7 +894,7 @@ public partial class FormPush : GitModuleForm
             // Solution: when pushing a branch that doesn't exist on the remote, ask what to do
             Validates.NotNull(_currentBranchName);
             Validates.NotNull(_selectedRemote.Name);
-            GitRef currentBranch = new(Module, null, _currentBranchName, _selectedRemote.Name);
+            GitRef currentBranch = new(Module, default, _currentBranchName, _selectedRemote.Name);
             _NO_TRANSLATE_Branch.Items.Add(currentBranch);
             _NO_TRANSLATE_Branch.SelectedItem = currentBranch;
         }
@@ -978,10 +978,8 @@ public partial class FormPush : GitModuleForm
         using (WaitCursorScope.Enter(Cursors.AppStarting))
         {
             IReadOnlyList<IGitRef> remoteHeads;
-            IDetailedSettings detailedSettings = Module.GetEffectiveSettings()
-                .Detailed();
 
-            if (detailedSettings.GetRemoteBranchesDirectlyFromRemote)
+            if (DetailedSettings.GetRemoteBranchesDirectlyFromRemote.ValueOrDefault(Module.GetEffectiveSettings()))
             {
                 StartPageant(remote);
 
