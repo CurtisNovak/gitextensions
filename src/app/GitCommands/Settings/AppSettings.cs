@@ -1961,6 +1961,12 @@ public static partial class AppSettings
         set => SetBool("RepoObjectsTree.ShowSubmodules", value);
     }
 
+    public static bool RepoObjectsTreeAutoExpandSubmodules
+    {
+        get => GetBool("RepoObjectsTree.AutoExpandSubmodules", false);
+        set => SetBool("RepoObjectsTree.AutoExpandSubmodules", value);
+    }
+
     public static bool RepoObjectsTreeShowWorktrees
     {
         get => GetBool("RepoObjectsTree.ShowWorktrees", true);

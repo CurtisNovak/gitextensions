@@ -183,7 +183,7 @@ internal sealed class SubmoduleTree : Tree
 
     protected override void PostFillTreeViewNode(bool firstTime)
     {
-        if (firstTime)
+        if (firstTime && AppSettings.RepoObjectsTreeAutoExpandSubmodules)
         {
             TreeViewNode.ExpandAll();
         }

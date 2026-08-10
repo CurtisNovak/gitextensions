@@ -20,6 +20,7 @@ public class FormBrowse_LeftPanel_SubmodulesTests
     // Track the original setting value
     private bool _originalShowAuthorAvatarColumn;
     private bool _showAvailableDiffTools;
+    private bool _originalAutoExpandSubmodules;
 
     private GitModuleTestHelper _repo1 = null!;
     private GitModuleTestHelper _repo2 = null!;
@@ -40,6 +41,7 @@ public class FormBrowse_LeftPanel_SubmodulesTests
         // Remember the current settings...
         _originalShowAuthorAvatarColumn = AppSettings.ShowAuthorAvatarColumn;
         _showAvailableDiffTools = AppSettings.ShowAvailableDiffTools;
+        _originalAutoExpandSubmodules = AppSettings.RepoObjectsTreeAutoExpandSubmodules;
 
         // Stop loading custom diff tools
         AppSettings.ShowAvailableDiffTools = false;
@@ -53,6 +55,7 @@ public class FormBrowse_LeftPanel_SubmodulesTests
     {
         AppSettings.ShowAuthorAvatarColumn = _originalShowAuthorAvatarColumn;
         AppSettings.ShowAvailableDiffTools = _showAvailableDiffTools;
+        AppSettings.RepoObjectsTreeAutoExpandSubmodules = _originalAutoExpandSubmodules;
     }
 
     [SetUp]
@@ -91,6 +94,8 @@ public class FormBrowse_LeftPanel_SubmodulesTests
     [Test]
     public void RepoObjectTree_should_show_all_submodules()
     {
+        AppSettings.RepoObjectsTreeAutoExpandSubmodules = false;
+
         RunFormTest(
             form =>
             {
@@ -131,5 +136,23 @@ public class FormBrowse_LeftPanel_SubmodulesTests
         UITest.RunForm(
             showForm: () => _commands.StartBrowseDialog(owner: null).Should().BeTrue(),
             testDriverAsync);
+    }
+
+    [Test]
+    public void RepoObjectTree_should_not_auto_expand_submodules_when_disabled()
+    {
+        AppSettings.RepoObjectsTreeAutoExpandSubmodules = false;
+
+        RunFormTest(
+            form =>
+            {
+                TreeNode submodulesNode = GetSubmoduleNode(form);
+
+                UITest.ProcessUntil("Loading submodules", () => submodulesNode.Nodes.Count == 1);
+
+                submodulesNode.IsExpanded.Should().BeFalse();
+
+                return Task.CompletedTask;
+            });
     }
 }
